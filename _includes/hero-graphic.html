@@ -1,49 +1,36 @@
-{% comment %}
-  Hero graphic — single pet image overlapping trust strip
-  Cards float in top-right over the image
-{% endcomment %}
+{% comment %}Hero graphic — transparent pet PNG overlapping trust strip{% endcomment %}
 <div class="hero-visual">
   <div class="hero-cards" id="hero-cards"></div>
   <img
-    src="{{ site.baseurl }}/assets/images/hero-pets.jpg"
-    alt="Happy dog and cat together"
+    src="{{ site.baseurl }}/assets/images/happy-pets.png"
+    alt="Happy dog and cat"
     class="hero-pet-img"
     loading="eager"
-    width="560" height="374">
+    width="612" height="408">
 </div>
 
 <script>
 (function(){
-  var CARDS = [
-    { emoji:'🦮', label:'Dog Collars',     sub:'Small breed picks',     url:'/pawpicks/pet-accessories/best-dog-collars-small-breeds/',    accent:'#FF6B4A' },
-    { emoji:'😺', label:'Cat Scratchers',  sub:'That actually last',    url:'/pawpicks/pet-accessories/best-cat-scratching-posts/',        accent:'#0D5C63' },
-    { emoji:'🐕', label:'No-Pull Harness', sub:'For strong pullers',    url:'/pawpicks/pet-accessories/best-no-pull-dog-harness/',         accent:'#FF6B4A' },
-    { emoji:'🐈', label:'Cat Feeders',     sub:'Auto-feed made easy',   url:'/pawpicks/pet-accessories/best-automatic-cat-feeder/',        accent:'#0D5C63' },
-    { emoji:'🎾', label:'Dog Toys',        sub:'For tough chewers',     url:'/pawpicks/pet-accessories/best-dog-toys-aggressive-chewers/', accent:'#FF6B4A' },
-    { emoji:'🛁', label:'Cat Litter',      sub:'Odor control rated',    url:'/pawpicks/pet-accessories/best-cat-litter-odor-control/',     accent:'#0D5C63' },
-    { emoji:'🛏️', label:'Dog Beds',       sub:'Large breed comfort',   url:'/pawpicks/pet-accessories/best-dog-beds-large-breeds/',       accent:'#FF6B4A' },
-    { emoji:'💧', label:'Water Fountains', sub:'Cats & dogs love it',   url:'/pawpicks/pet-accessories/best-pet-water-fountain/',          accent:'#0D5C63' },
-    { emoji:'📋', label:'Training Pads',   sub:'Puppy essentials',      url:'/pawpicks/pet-accessories/best-puppy-training-pads/',         accent:'#FF6B4A' },
-    { emoji:'✈️', label:'Cat Carriers',   sub:'Vet & travel ready',    url:'/pawpicks/pet-accessories/best-cat-carrier-travel/',          accent:'#0D5C63' },
+  var CARDS=[
+    {emoji:'🦮',label:'Dog Collars',sub:'Small breed picks',url:'/pawpicks/pet-accessories/best-dog-collars-small-breeds/',accent:'#FF6B4A'},
+    {emoji:'😺',label:'Cat Scratchers',sub:'That actually last',url:'/pawpicks/pet-accessories/best-cat-scratching-posts/',accent:'#0D5C63'},
+    {emoji:'🐕',label:'No-Pull Harness',sub:'For strong pullers',url:'/pawpicks/pet-accessories/best-no-pull-dog-harness/',accent:'#FF6B4A'},
+    {emoji:'🐈',label:'Cat Feeders',sub:'Auto-feed made easy',url:'/pawpicks/pet-accessories/best-automatic-cat-feeder/',accent:'#0D5C63'},
+    {emoji:'🎾',label:'Dog Toys',sub:'For tough chewers',url:'/pawpicks/pet-accessories/best-dog-toys-aggressive-chewers/',accent:'#FF6B4A'},
+    {emoji:'🛁',label:'Cat Litter',sub:'Odor control rated',url:'/pawpicks/pet-accessories/best-cat-litter-odor-control/',accent:'#0D5C63'},
+    {emoji:'🛏️',label:'Dog Beds',sub:'Large breed comfort',url:'/pawpicks/pet-accessories/best-dog-beds-large-breeds/',accent:'#FF6B4A'},
+    {emoji:'💧',label:'Water Fountains',sub:'Cats & dogs love it',url:'/pawpicks/pet-accessories/best-pet-water-fountain/',accent:'#0D5C63'},
+    {emoji:'📋',label:'Training Pads',sub:'Puppy essentials',url:'/pawpicks/pet-accessories/best-puppy-training-pads/',accent:'#FF6B4A'},
+    {emoji:'✈️',label:'Cat Carriers',sub:'Vet & travel ready',url:'/pawpicks/pet-accessories/best-cat-carrier-travel/',accent:'#0D5C63'},
   ];
-  var picks = CARDS.slice().sort(function(){ return Math.random()-.5; }).slice(0,2);
-  var wrap = document.getElementById('hero-cards');
-  if (!wrap) return;
-  picks.forEach(function(c, i){
-    var a = document.createElement('a');
-    a.className = 'hc';
-    a.href = c.url;
-    a.style.cssText = '--ha:'+c.accent+';animation-delay:'+(i*0.12)+'s';
-    a.innerHTML =
-      '<div class="hc-bar"></div>'+
-      '<div class="hc-inner">'+
-        '<span class="hc-icon">'+c.emoji+'</span>'+
-        '<div class="hc-text">'+
-          '<strong class="hc-label">'+c.label+'</strong>'+
-          '<span class="hc-sub">'+c.sub+'</span>'+
-        '</div>'+
-      '</div>'+
-      '<div class="hc-footer">Read review →</div>';
+  var picks=CARDS.slice().sort(function(){return Math.random()-.5}).slice(0,2);
+  var wrap=document.getElementById('hero-cards');
+  if(!wrap)return;
+  picks.forEach(function(c,i){
+    var a=document.createElement('a');
+    a.className='hc';a.href=c.url;
+    a.style.cssText='--ha:'+c.accent+';animation-delay:'+(i*.12)+'s';
+    a.innerHTML='<div class="hc-bar"></div><div class="hc-inner"><span class="hc-icon">'+c.emoji+'</span><div class="hc-text"><strong class="hc-label">'+c.label+'</strong><span class="hc-sub">'+c.sub+'</span></div></div><div class="hc-footer">Read review →</div>';
     wrap.appendChild(a);
   });
 })();

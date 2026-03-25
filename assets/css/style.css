@@ -77,30 +77,29 @@ a{color:inherit;text-decoration:none}
 .btn-secondary:hover{border-color:var(--teal);color:var(--teal);transform:translateY(-2px)}
 .hero-graphic-wrap{align-self:flex-end;position:relative}
 
-/* ── Hero Visual: image overlaps trust strip ──────────── */
+/* ── Hero Visual: transparent PNG overlapping trust strip ── */
 .hero-visual{
   position:relative;
-  display:flex;align-items:flex-end;
-  /* image extends 60px below hero into trust strip */
-  margin-bottom:-60px;
+  /* pull image DOWN so bottom bleeds into trust strip */
+  margin-bottom:-80px;
+  display:inline-block;
+  width:100%;
 }
-/* The pet image */
+/* Transparent pet PNG — no background, no border-radius needed */
 .hero-pet-img{
-  width:100%;max-width:560px;
-  height:360px;
-  object-fit:cover;
-  object-position:center top;
-  border-radius:var(--rx-xl) var(--rx-xl) 0 0;
-  /* multiply removes black background from JPEG */
-  mix-blend-mode:multiply;
+  width:100%;max-width:600px;
+  height:auto;
   display:block;
+  margin:0 auto;
+  /* drop shadow to give depth against peach bg */
+  filter:drop-shadow(0 16px 40px rgba(13,92,99,.2));
 }
-/* Floating product cards — top-right corner of image */
+/* Cards float in TOP-LEFT of the image container */
 .hero-cards{
   position:absolute;
-  top:20px;right:20px;
+  top:16px;left:16px;
   z-index:50;
-  display:flex;flex-direction:column;gap:.7rem;
+  display:flex;flex-direction:column;gap:.65rem;
 }
 .hc{
   display:block;background:#fff;
@@ -123,7 +122,7 @@ a{color:inherit;text-decoration:none}
 /* ── Trust Strip — sits under the overlapping image ─────── */
 .trust-strip{
   background:var(--teal);
-  padding:80px 1.5rem 1.2rem; /* top pad = image overlap amount */
+  padding:100px 1.5rem 1.2rem; /* top pad = image overlap amount */
   position:relative;z-index:0;
 }
 .trust-inner{
