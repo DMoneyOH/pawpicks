@@ -3,15 +3,20 @@ layout: default
 ---
 {% if page.url == "/" %}
 <section class="hero">
-  <div class="hero-inner">
-    <div class="hero-badge">🐾 Trusted Pet Reviews</div>
-    <h1 class="hero-title">
-      Honest picks for<br>your <span class="accent">happy pet.</span>
-    </h1>
-    <p class="hero-sub">No sponsored posts, no guesswork. Just real product reviews written for dog and cat owners who want the best for their pets.</p>
-    <div class="hero-actions">
-      <a href="#reviews" class="btn-primary">Browse Reviews ↓</a>
-      <a href="{{ site.baseurl }}/dogs/" class="btn-ghost">🐶 Dog Products</a>
+  <div class="hero-layout">
+    <div class="hero-content">
+      <div class="hero-badge">🐾 Trusted Pet Reviews</div>
+      <h1 class="hero-title">
+        Honest picks for<br>your <span class="accent">happy pet.</span>
+      </h1>
+      <p class="hero-sub">No sponsored posts, no guesswork. Real product reviews written for dog and cat owners who want the best.</p>
+      <div class="hero-actions">
+        <a href="#reviews" class="btn-primary">Browse Reviews ↓</a>
+        <a href="{{ site.baseurl }}/dogs/" class="btn-ghost">🐶 Dog Products</a>
+      </div>
+    </div>
+    <div class="hero-graphic-wrap">
+      {% include hero-graphic.html %}
     </div>
   </div>
 </section>
@@ -20,7 +25,7 @@ layout: default
   <div class="trust-inner">
     <div class="trust-item"><span>✅</span><span><strong>Honest</strong> — no paid placements</span></div>
     <div class="trust-item"><span>🔍</span><span><strong>Researched</strong> — every product reviewed</span></div>
-    <div class="trust-item"><span>💰</span><span><strong>Budget-focused</strong> — value for your money</span></div>
+    <div class="trust-item"><span>💰</span><span><strong>Budget-focused</strong> — real value</span></div>
     <div class="trust-item"><span>🐾</span><span><strong>Pet-first</strong> — always</span></div>
   </div>
 </div>
@@ -31,7 +36,7 @@ layout: default
     <span class="cat-pill">🐶 Dogs</span>
     <span class="cat-pill">🐱 Cats</span>
     <span class="cat-pill peach">🎾 Toys</span>
-    <span class="cat-pill">🛏️ Beds & Comfort</span>
+    <span class="cat-pill">🛏️ Beds &amp; Comfort</span>
     <span class="cat-pill peach">🍽️ Feeding</span>
     <span class="cat-pill">✈️ Travel</span>
   </div>
