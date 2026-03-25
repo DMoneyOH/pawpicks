@@ -45,6 +45,7 @@ a{color:inherit;text-decoration:none}
   background:var(--peach);
   padding:4rem 1.5rem 0;
   overflow:visible;
+  line-height:0;
   position:relative;z-index:1;
 }
 .hero::before{
@@ -56,16 +57,16 @@ a{color:inherit;text-decoration:none}
 .hero-layout{
   max-width:var(--max-w);margin:0 auto;
   display:grid;grid-template-columns:1fr 1fr;
-  gap:2rem;align-items:flex-start;
+  gap:3rem;align-items:flex-start;
   position:relative;z-index:2;
 }
 .hero-content{padding-bottom:3rem}
 .hero-badge{
   display:inline-flex;align-items:center;gap:.45rem;
-  background:var(--teal);color:#fff;border-radius:var(--rx-p);
+  background:var(--sun);color:var(--dark);border-radius:var(--rx-p);
   padding:.35rem 1rem;font-size:.76rem;font-weight:800;
   letter-spacing:.07em;text-transform:uppercase;
-  margin-bottom:1.4rem;box-shadow:var(--sh-t);
+  margin-bottom:1.4rem;box-shadow:0 4px 14px rgba(255,209,102,.4);
 }
 .hero-title{font-family:var(--font-d);font-size:clamp(2.6rem,5.5vw,4.2rem);font-weight:700;line-height:1.0;letter-spacing:.01em;color:var(--dark);margin-bottom:1.2rem}
 .hero-title .accent{color:var(--coral)}
@@ -82,6 +83,9 @@ a{color:inherit;text-decoration:none}
   display:flex;
   align-items:flex-end;
   justify-content:flex-end;
+  margin-bottom:0;
+  line-height:0;
+  overflow:visible;
 }
 
 /* ── Hero Visual ── */
@@ -89,7 +93,7 @@ a{color:inherit;text-decoration:none}
   position:relative;
   width:100%;
   /* bottom of image sits exactly on the hero/trust border */
-  margin-bottom:-10px;
+  margin-bottom:0;
 }
 .hero-pet-img{
   width:100%;
@@ -99,13 +103,13 @@ a{color:inherit;text-decoration:none}
   margin:0 auto;
   filter:drop-shadow(0 16px 32px rgba(13,92,99,.2));
 }
-/* Cards: upper-left of image */
+/* Cards: float to the LEFT of the image, clear of animals */
 .hero-cards{
   position:absolute;
-  top:12px;
-  left:4px;
+  top:24px;
+  left:-192px;
   z-index:50;
-  display:flex;flex-direction:column;gap:.65rem;
+  display:flex;flex-direction:column;gap:.75rem;
 }
 .hc{
   display:block;background:#fff;
@@ -145,7 +149,7 @@ a{color:inherit;text-decoration:none}
 .ti-icon{
   display:inline-flex;align-items:center;justify-content:center;
   width:28px;height:28px;border-radius:var(--rx-sm);
-  background:rgba(255,255,255,.15);font-size:.9rem;flex-shrink:0;
+  background:rgba(255,209,102,.25);font-size:.9rem;flex-shrink:0;
 }
 .trust-item strong{color:var(--sun)}
 
@@ -156,14 +160,14 @@ a{color:inherit;text-decoration:none}
 .categories-inner{max-width:var(--max-w);margin:0 auto;display:flex;gap:.6rem;align-items:center}
 .cat-pill{display:inline-flex;align-items:center;gap:.35rem;padding:.42rem 1.05rem;border-radius:var(--rx-p);border:2px solid var(--border);font-size:.82rem;font-weight:700;color:var(--text-mid);background:#fff;white-space:nowrap;cursor:pointer;transition:all var(--ease);font-family:var(--font-b)}
 .cat-pill:hover{border-color:var(--teal);color:var(--teal)}
-.cat-pill.active{background:var(--teal);border-color:var(--teal);color:#fff;box-shadow:var(--sh-t)}
+.cat-pill.active{background:var(--sun);border-color:var(--sun-dk,#F0B840);color:var(--dark);box-shadow:0 4px 14px rgba(255,209,102,.35)}
 
 /* ── Posts Section ──────────────────────────────────────── */
 .site-main{min-height:60vh}
 .posts-section{max-width:var(--max-w);margin:0 auto;padding:3rem 1.5rem 5rem}
 .section-header{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:2rem}
 .section-title{font-family:var(--font-d);font-size:2rem;font-weight:700;color:var(--dark);letter-spacing:.02em}
-.section-count{font-size:.8rem;font-weight:700;background:var(--teal-lt);color:var(--teal);padding:.28rem .8rem;border-radius:var(--rx-p)}
+.section-count{font-size:.8rem;font-weight:700;background:var(--sun);color:var(--dark);padding:.28rem .8rem;border-radius:var(--rx-p)}
 .post-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:1.5rem}
 .empty-state{grid-column:1/-1;text-align:center;padding:4rem 2rem;background:#fff;border-radius:var(--rx-xl);border:2px dashed var(--border-mid)}
 .empty-state p{color:var(--text-mid);font-size:1.1rem;font-weight:600}
