@@ -22,6 +22,14 @@ layout: default
   </div>
 </section>
 
+<!-- Mini pet: visible only on small screens (CSS controlled) -->
+<div class="mobile-pet-wrap">
+  <img src="{{ site.baseurl }}/assets/images/happy-pets.png"
+       alt="Happy dog and cat"
+       class="mobile-pet-img"
+       loading="lazy">
+</div>
+
 <div class="trust-strip">
   <div class="trust-inner">
     <div class="trust-item"><span class="ti-icon">✅</span><span><strong>Honest</strong> — no paid placements</span></div>
@@ -59,22 +67,18 @@ layout: default
     </div>
     {% else %}
     {% for post in site.posts %}
-    {% comment %}Species-aware emoji: use post.species front matter{% endcomment %}
     {% if post.species == "cat" %}
-      {% assign card_emoji = "🐈" %}
+      {% assign data_filter = "cat" %}
       {% assign species_label = "Cat" %}
       {% assign species_class = "species-cat" %}
-      {% assign data_filter = "cat" %}
     {% elsif post.species == "dog" %}
-      {% assign card_emoji = "🐕" %}
+      {% assign data_filter = "dog" %}
       {% assign species_label = "Dog" %}
       {% assign species_class = "species-dog" %}
-      {% assign data_filter = "dog" %}
     {% else %}
-      {% assign card_emoji = "🐾" %}
+      {% assign data_filter = "all" %}
       {% assign species_label = "" %}
       {% assign species_class = "species-both" %}
-      {% assign data_filter = "all" %}
     {% endif %}
     <article class="post-card" data-filter="{{ data_filter }}">
       <div class="card-accent"></div>
@@ -83,9 +87,10 @@ layout: default
           <div class="card-badges">
             <span class="card-category">{{ post.categories | first | replace: "-", " " | capitalize }}</span>
             {% if species_label != "" %}
-            <span class="card-species {{ species_class }}">{{ card_emoji }} {{ species_label }}</span>
+            {%- if species_label == "Cat" -%}{% assign species_icon = "🐈" %}{%- else -%}{% assign species_icon = "🐕" %}{%- endif -%}<span class="card-species {{ species_class }}">{{ species_icon }} {{ species_label }}</span>
             {% endif %}
           </div>
+          <span class="card-emoji" data-title="{{ post.title | downcase }}"></span>
         </div>
         <h2 class="card-title">{{ post.title }}</h2>
         <p class="card-excerpt">{{ post.excerpt | strip_html | truncate: 115 }}</p>
@@ -102,8 +107,50 @@ layout: default
 
 <script>
 (function(){
-  var pills = document.querySelectorAll('.cat-pill');
-  var cards = document.querySelectorAll('.post-card');
+  /* ── Topic-based emoji map — most specific match wins ── */
+  var EMOJI_MAP = [
+    // Specific products first
+    {k:['collar','collars'],         e:'🏷️'},
+    {k:['harness'],                  e:'🦺'},
+    {k:['leash'],                    e:'🦮'},
+    {k:['toy','toys','chew','chewer'],e:'🎾'},
+    {k:['bed','beds'],               e:'🛏️'},
+    {k:['crate','crates'],           e:'🏠'},
+    {k:['litter','litter box'],      e:'🧹'},
+    {k:['scratch','scratcher'],      e:'🪵'},
+    {k:['food','treat','treats','nutrition','diet'],e:'🍖'},
+    {k:['feeder','feeding','bowl','bowls'],e:'🥣'},
+    {k:['water','fountain'],         e:'💧'},
+    {k:['carrier','carriers','travel'],e:'✈️'},
+    {k:['grooming','brush','brushing','shampoo'],e:'🪮'},
+    {k:['training','pad','pads'],    e:'📋'},
+    {k:['health','supplement','vitamin'],e:'💊'},
+    {k:['camera','monitor'],         e:'📷'},
+    {k:['stroller','pram'],          e:'🛺'},
+    // Species fallbacks
+    {k:['cat','cats','kitten','feline'],e:'🐈'},
+    {k:['dog','dogs','puppy','canine'], e:'🐕'},
+  ];
+
+  function getEmoji(title) {
+    var t = (title || '').toLowerCase();
+    for (var i = 0; i < EMOJI_MAP.length; i++) {
+      var entry = EMOJI_MAP[i];
+      for (var j = 0; j < entry.k.length; j++) {
+        if (t.indexOf(entry.k[j]) !== -1) return entry.e;
+      }
+    }
+    return '🐾'; // final fallback
+  }
+
+  /* Fill card emojis */
+  document.querySelectorAll('.card-emoji[data-title]').forEach(function(el){
+    el.textContent = getEmoji(el.dataset.title);
+  });
+
+  /* ── Category pill filter ── */
+  var pills   = document.querySelectorAll('.cat-pill');
+  var cards   = document.querySelectorAll('.post-card');
   var countEl = document.getElementById('review-count');
   pills.forEach(function(pill){
     pill.addEventListener('click', function(){

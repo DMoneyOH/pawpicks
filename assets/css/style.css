@@ -248,6 +248,22 @@ a { color: inherit; text-decoration: none; }
 .footer-links a:hover { color: var(--sun); }
 .footer-legal { max-width: var(--max-w); margin: 0 auto; font-size: .78rem; color: rgba(255,255,255,.3); display: flex; justify-content: space-between; flex-wrap: wrap; gap: .5rem; line-height: 1.5; }
 
+
+/* ── Mobile pet image strip (hidden on desktop) ─────────── */
+.mobile-pet-wrap {
+  display: none;                  /* hidden on desktop */
+  background: var(--peach);
+  text-align: center;
+  line-height: 0;
+  overflow: hidden;
+}
+.mobile-pet-img {
+  width: 100%;
+  max-width: 420px;
+  height: auto;
+  display: inline-block;
+  filter: drop-shadow(0 8px 20px rgba(13,92,99,.15));
+}
 /* ── Animations ──────────────────────────────────────────── */
 @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 .hero-content  { animation: fadeUp .6s ease both; }
@@ -281,6 +297,7 @@ a { color: inherit; text-decoration: none; }
 
 /* ── Tablet (550–960px): stacked hero, pets still visible ── */
 @media (max-width: 960px) {
+  .mobile-pet-wrap { display: block; }
   .hero-layout {
     grid-template-columns: 1fr;
     align-items: flex-start;
@@ -301,6 +318,7 @@ a { color: inherit; text-decoration: none; }
 
 /* ── Small mobile (<520px): hide pets, full-width content ── */
 @media (max-width: 520px) {
+  .mobile-pet-img { max-width: 280px; }
   .hero-graphic-wrap { display: none; }
   .hero { padding-bottom: 1.5rem; }
   .hero-content { padding-bottom: 1rem; }
