@@ -5,6 +5,7 @@ layout: default
   <header class="post-header">
     <div class="post-meta-top">
       <span class="post-category">{{ page.categories | first | replace: '-', ' ' | capitalize }}</span>
+      {% if page.species == "cat" %}<span class="card-species species-cat">🐈 Cat</span>{% elsif page.species == "dog" %}<span class="card-species species-dog">🐕 Dog</span>{% endif %}
       <time class="post-date">{{ page.date | date: "%B %d, %Y" }}</time>
     </div>
     <h1 class="post-title">{{ page.title }}</h1>

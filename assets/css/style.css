@@ -196,6 +196,11 @@ a { color: inherit; text-decoration: none; }
 .card-link { display: flex; flex-direction: column; height: 100%; padding: 1.5rem; }
 .card-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: .9rem; }
 .card-category { font-size: .72rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; background: var(--teal-lt); color: var(--teal); padding: .32rem .75rem; border-radius: var(--rx-p); line-height: 1.4; }
+.card-badges { display: flex; flex-direction: column; gap: .35rem; }
+.card-species { display: inline-flex; align-items: center; gap: .3rem; font-size: .72rem; font-weight: 800; padding: .28rem .65rem; border-radius: var(--rx-p); line-height: 1.4; white-space: nowrap; }
+.species-dog { background: #E8F4FD; color: #1565C0; }
+.species-cat { background: #FDF3FF; color: #7B1FA2; }
+.species-both { background: var(--peach-mid); color: var(--dark); }
 .card-emoji { font-size: 1.5rem; line-height: 1; }
 .card-title { font-family: var(--font-d); font-size: clamp(1.05rem,2.2vw,1.2rem); font-weight: 600; line-height: 1.3; color: var(--dark); letter-spacing: .01em; margin-bottom: .75rem; flex: 1; transition: color var(--ease); }
 .post-card:hover .card-title { color: var(--coral); }
@@ -274,43 +279,33 @@ a { color: inherit; text-decoration: none; }
   .site-header { position: relative; }
 }
 
-/* ── Mid: tablet portrait (500–800px) ───────────────────── */
-/* Hero still shows image + cards but in a tighter stack */
-@media (max-width: 800px) {
-  /* Switch to stacked layout: content top, visual below */
+/* ── Tablet (550–960px): stacked hero, pets still visible ── */
+@media (max-width: 960px) {
   .hero-layout {
     grid-template-columns: 1fr;
     align-items: flex-start;
   }
-  /* Show graphic wrap but make it horizontal: image left, cards right */
   .hero-graphic-wrap {
     justify-content: center;
     margin-bottom: 0;
   }
   .hero { padding-bottom: 0; overflow: hidden; }
   .hero-content { padding-bottom: 1.25rem; }
-  /* Constrain image on tablet so it doesn't overflow */
-  .hero-pet-img { max-width: min(380px, 70vw); }
-  /* Cards: stay right of image */
-  .hc { width: clamp(120px, 22vw, 155px); }
-  /* Trust strip: allow wrap gracefully on narrow screens */
-  .trust-inner { flex-wrap: wrap; gap: .65rem; justify-content: flex-start; }
-  /* Hero actions: row on tablet, still readable */
-  .hero-actions { flex-wrap: wrap; }
-  /* Footer stack */
+  /* Pets scale down but stay visible */
+  .hero-pet-img { max-width: min(360px, 65vw); }
+  .hc { width: clamp(120px, 20vw, 155px); }
+  .trust-inner { gap: .75rem; }
   .footer-inner { grid-template-columns: 1fr; gap: 2rem; }
   .footer-legal { flex-direction: column; }
 }
 
-/* ── Small mobile (<480px) ───────────────────────────────── */
-@media (max-width: 480px) {
-  /* Hide the visual on very small screens — content takes priority */
+/* ── Small mobile (<520px): hide pets, full-width content ── */
+@media (max-width: 520px) {
   .hero-graphic-wrap { display: none; }
-  .hero { padding-bottom: 2rem; }
-  .hero-content { padding-bottom: 1.5rem; }
-  .hero-actions { flex-direction: column; align-items: flex-start; }
-  /* Single column article cards */
+  .hero { padding-bottom: 1.5rem; }
+  .hero-content { padding-bottom: 1rem; }
+  .hero-actions { flex-direction: column; align-items: flex-start; gap: .5rem; }
+  .trust-inner { flex-wrap: wrap; gap: .5rem; justify-content: flex-start; }
   .post-grid { grid-template-columns: 1fr; }
-  /* Article body */
-  .post-body th, .post-body td { padding: .55rem .6rem; }
+  .post-body th, .post-body td { padding: .5rem .6rem; }
 }

@@ -3,6 +3,7 @@ layout: post
 title: "Best No-Pull Dog Harnesses Reviewed"
 date: 2026-03-25
 categories: [pet-accessories]
+species: dog
 tags: [no pull dog harness]
 description: "Best No-Pull Dog Harnesses Reviewed - expert reviews and buying guide."
 ---

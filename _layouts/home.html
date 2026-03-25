@@ -58,15 +58,34 @@ layout: default
       <small>We're writing in-depth guides right now — check back in a few hours.</small>
     </div>
     {% else %}
-    {% assign emojis = "🦮,😺,🐕,🐈,🎾,🛁,🏕️,💧,📋,✈️" | split: "," %}
-    {% assign filters = "dog,cat,dog,cat,toy,cat,bed,feed,dog,travel" | split: "," %}
     {% for post in site.posts %}
-    <article class="post-card" data-filter="{{ filters[forloop.index0] }}">
+    {% comment %}Species-aware emoji: use post.species front matter{% endcomment %}
+    {% if post.species == "cat" %}
+      {% assign card_emoji = "🐈" %}
+      {% assign species_label = "Cat" %}
+      {% assign species_class = "species-cat" %}
+      {% assign data_filter = "cat" %}
+    {% elsif post.species == "dog" %}
+      {% assign card_emoji = "🐕" %}
+      {% assign species_label = "Dog" %}
+      {% assign species_class = "species-dog" %}
+      {% assign data_filter = "dog" %}
+    {% else %}
+      {% assign card_emoji = "🐾" %}
+      {% assign species_label = "" %}
+      {% assign species_class = "species-both" %}
+      {% assign data_filter = "all" %}
+    {% endif %}
+    <article class="post-card" data-filter="{{ data_filter }}">
       <div class="card-accent"></div>
       <a href="{{ post.url | prepend: site.baseurl }}" class="card-link">
         <div class="card-top">
-          <span class="card-category">{{ post.categories | first | replace: '-', ' ' | capitalize }}</span>
-          <span class="card-emoji">{{ emojis[forloop.index0] }}</span>
+          <div class="card-badges">
+            <span class="card-category">{{ post.categories | first | replace: "-", " " | capitalize }}</span>
+            {% if species_label != "" %}
+            <span class="card-species {{ species_class }}">{{ card_emoji }} {{ species_label }}</span>
+            {% endif %}
+          </div>
         </div>
         <h2 class="card-title">{{ post.title }}</h2>
         <p class="card-excerpt">{{ post.excerpt | strip_html | truncate: 115 }}</p>

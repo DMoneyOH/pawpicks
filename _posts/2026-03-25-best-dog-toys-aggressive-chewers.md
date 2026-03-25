@@ -3,6 +3,7 @@ layout: post
 title: "Best Dog Toys for Aggressive Chewers"
 date: 2026-03-25
 categories: [pet-accessories]
+species: dog
 tags: [dog toys aggressive chewers]
 description: "Best Dog Toys for Aggressive Chewers - expert reviews and buying guide."
 ---

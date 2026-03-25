@@ -3,6 +3,7 @@ layout: post
 title: "Best Dog Beds for Large Breeds on a Budget"
 date: 2026-03-25
 categories: [pet-accessories]
+species: dog
 tags: [dog beds large breeds]
 description: "Best Dog Beds for Large Breeds on a Budget - expert reviews and buying guide."
 ---
