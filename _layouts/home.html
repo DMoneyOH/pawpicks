@@ -4,23 +4,63 @@ layout: default
 {% if page.url == "/" %}
 <section class="hero">
   <div class="hero-inner">
-    <p class="hero-eyebrow">Trusted Pet Product Reviews</p>
-    <h1 class="hero-title">Find the best gear<br><em>for your best friend.</em></h1>
-    <p class="hero-sub">Honest, no-fluff reviews of pet products that actually work — for dogs, cats, and the humans who love them.</p>
+    <div class="hero-badge">Trusted Pet Reviews</div>
+    <h1 class="hero-title">
+      The best gear<br>
+      for your <span class="accent">best friend.</span>
+    </h1>
+    <p class="hero-sub">No fluff, no paid placements. Just honest reviews of pet products that actually work — tested and written for real pet owners.</p>
+    <div class="hero-actions">
+      <a href="#reviews" class="btn-primary">Browse Reviews ↓</a>
+      <a href="{{ site.baseurl }}/dogs/" class="btn-ghost">🐶 Dog Products</a>
+    </div>
+    <div class="hero-stats">
+      <div>
+        <div class="stat-num">10<span>+</span></div>
+        <div class="stat-label">In-depth reviews</div>
+      </div>
+      <div>
+        <div class="stat-num">3<span>x</span></div>
+        <div class="stat-label">Affiliate programs compared</div>
+      </div>
+      <div>
+        <div class="stat-num">100<span>%</span></div>
+        <div class="stat-label">Free to read</div>
+      </div>
+    </div>
   </div>
-  <div class="hero-bar"></div>
 </section>
+
+<nav class="categories-bar">
+  <div class="categories-inner">
+    <span class="cat-pill active">✦ All Reviews</span>
+    <span class="cat-pill green">🐶 Dogs</span>
+    <span class="cat-pill purple">🐱 Cats</span>
+    <span class="cat-pill">🎾 Toys</span>
+    <span class="cat-pill">🛏️ Beds & Comfort</span>
+    <span class="cat-pill">🍽️ Feeding</span>
+    <span class="cat-pill">🚗 Travel</span>
+  </div>
+</nav>
 {% endif %}
 
-<section class="posts-section">
-  {% if page.url == "/" %}<h2 class="section-title">Latest Reviews</h2>{% endif %}
+<section class="posts-section" id="reviews">
+  <div class="section-header">
+    <h2 class="section-title">Latest Reviews</h2>
+    <span class="section-count">{{ site.posts | size }} articles</span>
+  </div>
   <div class="post-grid">
+    {% assign emojis = "🦮,😺,🐕,🐈,🎾,🛁,🏕️,💧,📋,✈️" | split: "," %}
     {% for post in site.posts %}
     <article class="post-card">
+      <div class="card-color-bar"></div>
       <a href="{{ post.url | prepend: site.baseurl }}" class="card-link">
-        <div class="card-category">{{ post.categories | first | replace: '-', ' ' | capitalize }}</div>
+        <div class="card-top">
+          <span class="card-category">{{ post.categories | first | replace: '-', ' ' | capitalize }}</span>
+          <span class="card-emoji">{{ emojis[forloop.index0] }}</span>
+        </div>
         <h2 class="card-title">{{ post.title }}</h2>
-        <p class="card-excerpt">{{ post.excerpt | strip_html | truncate: 110 }}</p>
+        <p class="card-excerpt">{{ post.excerpt | strip_html | truncate: 115 }}</p>
         <div class="card-footer">
           <time class="card-date">{{ post.date | date: "%b %d, %Y" }}</time>
           <span class="card-read">Read Review →</span>

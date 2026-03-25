@@ -7,7 +7,7 @@
   <meta name="description" content="{{ page.description | default: site.description }}">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;0,9..144,700;1,9..144,300&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700;12..96,800&family=Plus+Jakarta+Sans:ital,wght@0,400;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ site.baseurl }}/assets/css/style.css">
   {% seo %}
 </head>
@@ -19,31 +19,29 @@
         <span class="logo-text">PawPicks</span>
       </a>
       <nav class="site-nav">
-        <a href="{{ site.baseurl }}/">Home</a>
+        <a href="{{ site.baseurl }}/">Reviews</a>
         <a href="{{ site.baseurl }}/dogs/">Dogs</a>
         <a href="{{ site.baseurl }}/cats/">Cats</a>
-        <a href="{{ site.baseurl }}/about/" class="nav-cta">About</a>
+        <a href="{{ site.baseurl }}/about/" class="nav-cta">Start Here →</a>
       </nav>
       <button class="nav-toggle" aria-label="Toggle menu">&#9776;</button>
     </div>
   </header>
-  <main class="site-main">
-    {{ content }}
-  </main>
+  <main class="site-main">{{ content }}</main>
   <footer class="site-footer">
     <div class="footer-inner">
       <div class="footer-brand">
         <span class="logo-text">🐾 PawPicks</span>
-        <p>Honest reviews for pet owners who care.</p>
+        <p>Honest pet product reviews that cut through the noise. Because your pet deserves better than guesswork.</p>
       </div>
       <div class="footer-links">
-        <a href="{{ site.baseurl }}/">Reviews</a>
-        <a href="{{ site.baseurl }}/dogs/">Dogs</a>
-        <a href="{{ site.baseurl }}/cats/">Cats</a>
+        <a href="{{ site.baseurl }}/">All Reviews</a>
+        <a href="{{ site.baseurl }}/dogs/">Dog Products</a>
+        <a href="{{ site.baseurl }}/cats/">Cat Products</a>
       </div>
     </div>
     <div class="footer-legal">
-      <p>As an Amazon Associate and Chewy affiliate, PawPicks earns from qualifying purchases — at no extra cost to you.</p>
+      <p>As an Amazon Associate and Chewy affiliate, PawPicks earns from qualifying purchases at no extra cost to you.</p>
       <p>&copy; {{ site.time | date: '%Y' }} PawPicks</p>
     </div>
   </footer>
