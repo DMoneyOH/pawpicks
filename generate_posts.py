@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 """
-Happy Pet Product Reviews Generator v13 — Real Product + Web-Validated Pipeline
+Happy Pet Product Reviews Generator v13 — Real Product Pipeline
 - Loads products.json for real affiliate links per topic
-- Web searches Reddit + review sites for real owner sentiment
 - Flexible article format: single_review, roundup, buying_guide
 - Gemini-2.5-flash for content generation
-- 15 min between articles, auto git push
+- 15 min between articles, per-article git push
 """
 import os, re, json, datetime, time, urllib.request, urllib.error, urllib.parse, subprocess
 from pathlib import Path
@@ -17,7 +16,6 @@ LOCK_PATH = Path("/tmp/pawpicks_gen.lock")
 
 MODEL       = "gemini-2.5-flash"
 GEMINI_URL  = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
-CSE_URL     = "https://www.googleapis.com/customsearch/v1"
 INTER_DELAY = 900
 RPM_SLEEP   = 8
 MAX_RETRIES = 3
@@ -68,9 +66,9 @@ def load_products() -> dict:
 def front_matter(title: str, keyword: str, affiliate_url: str = "") -> str:
     today = datetime.date.today().isoformat()
     kw = keyword.lower()
-    if any(w in kw for w in ['cat','kitten','feline','litter','scratch']):
+    if any(w in kw for w in ['cat', 'kitten', 'feline', 'litter', 'scratch']):
         species = 'cat'
-    elif any(w in kw for w in ['dog','puppy','canine','harness','collar','chew']):
+    elif any(w in kw for w in ['dog', 'puppy', 'canine', 'harness', 'collar', 'chew']):
         species = 'dog'
     else:
         species = 'both'
@@ -84,11 +82,7 @@ def front_matter(title: str, keyword: str, affiliate_url: str = "") -> str:
     fm += '---\n'
     return fm
 
-def fetch_validation_context(product_name, keyword, cse_key, cse_cx):
-    return ""
-
-def make_prompt(title: str, keyword: str, slug: str, fmt: str,
-                product: dict, validation: str) -> str:
+def make_prompt(title: str, keyword: str, slug: str, fmt: str, product: dict) -> str:
     link = ""
     if slug in INTERNAL_LINKS:
         url, anchor = INTERNAL_LINKS[slug]
@@ -96,20 +90,17 @@ def make_prompt(title: str, keyword: str, slug: str, fmt: str,
 
     product_name = product.get("name", "")
     affiliate_url = product.get("url", "")
+
     affiliate_block = ""
     if product_name and affiliate_url:
         affiliate_block = (
             f'FEATURED PRODUCT: {product_name}\n'
             f'AFFILIATE LINK: {affiliate_url}\n'
-            f'LINKING RULE: Every time {product_name} is mentioned by name in the article -- including in comparison table cells -- render it as [{product_name}]({affiliate_url}). No plain-text mentions. Every reference must be a clickable affiliate link.
-'
-        )
-
-    validation_block = ""
-    if validation:
-        validation_block = (
-            f'\nREAL OWNER/EXPERT CONTEXT (use these to inform the review tone and specific details — '
-            f'do not copy verbatim, use as grounding):\n{validation}\n'
+            f'LINKING RULE: Every time {product_name} is mentioned by name in the article '
+            f'-- including in comparison table cells -- render it as '
+            f'[{product_name}]({affiliate_url}). '
+            f'No plain-text mentions of the product name are allowed. '
+            f'Every reference must be a clickable affiliate link.\n'
         )
 
     if fmt == "single_review":
@@ -119,19 +110,19 @@ STRUCTURE (all sections required):
 - Opening (100+ words): Relatable scenario where this product solves a real pet owner problem
 - Product Overview (H2): What it is, who it's for, key specs
 - What We Like (H2): 4-5 specific praised features with real-world context
-- What Could Be Better (H2): 2-3 honest drawbacks — be specific, not vague
-- Real Owner Experiences (H2): Draw from the context snippets provided — summarize sentiment naturally
+- What Could Be Better (H2): 2-3 honest drawbacks -- be specific, not vague
+- Real Owner Experiences (H2): Summarize common owner sentiment naturally
 - Who Should Buy This (H2): Specific use cases and pet/owner types it suits best
 - Verdict (H2, 80+ words): Clear recommendation, include the affiliate link naturally here
 - Star rating line: "**Our Rating: X/5**" based on honest assessment"""
 
     elif fmt == "roundup":
-        structure = f"""ARTICLE FORMAT: Roundup/comparison article — {title}
+        structure = f"""ARTICLE FORMAT: Roundup/comparison article -- {title}
 
 STRUCTURE (all sections required):
 - Opening (100+ words): Hook with a relatable pet owner problem this category solves
 - Quick Picks (H2): 3-4 sentence summary of top recommendations
-- Featured Pick — {product_name} (H3): 80-100 word review, pros/cons bullets, include affiliate link
+- Featured Pick -- {product_name} (H3): 80-100 word review, pros/cons bullets, include affiliate link
 - 2-3 Additional Picks (H3 each): Use real well-known brands (Kong, PetSafe, Frisco, etc.)
   Each gets: 60-80 words, 3 pros, 2 cons
 - Comparison Table (H2): Product | Best For | Price Range | Our Rating
@@ -139,12 +130,12 @@ STRUCTURE (all sections required):
 - Closing (80+ words): Clear recommendation with affiliate link"""
 
     else:  # buying_guide
-        structure = f"""ARTICLE FORMAT: Buying guide — {title}
+        structure = f"""ARTICLE FORMAT: Buying guide -- {title}
 
 STRUCTURE (all sections required):
 - Opening (100+ words): Why choosing the right {keyword} matters
 - What to Look For (H2): 5-6 key factors with detailed explanation each
-- Our Top Pick — {product_name} (H2): 100 word review, include affiliate link
+- Our Top Pick -- {product_name} (H2): 100 word review, include affiliate link
 - Common Mistakes to Avoid (H2): 3-4 specific pitfalls new pet owners make
 - FAQ (H2): 4-5 real questions with concise answers
 - Closing (80+ words): Actionable next steps, include affiliate link"""
@@ -153,20 +144,21 @@ STRUCTURE (all sections required):
 
 Write a complete, publish-ready blog post. Title: "{title}". Focus keyword: "{keyword}".
 
-{affiliate_block}{validation_block}
+{affiliate_block}
 LENGTH: 950-1100 words of body content. This is a firm requirement.
 
 {structure}
 
 WRITING STYLE:
-- Conversational, warm, authoritative — like advice from a trusted friend who owns pets
+- Conversational, warm, authoritative -- like advice from a trusted friend who owns pets
 - Vary sentence length. Short punchy sentences mixed with longer flowing ones.
-- NO AI clichés: never use "delve", "it's worth noting", "in conclusion", "look no further", "game-changer", "comprehensive guide", "navigate"
-- Pet facts must be accurate — breeds, behavior, materials, safety
+- NO AI cliches: never use "delve", "it's worth noting", "in conclusion", "look no further", "game-changer", "comprehensive guide", "navigate"
+- Pet facts must be accurate -- breeds, behavior, materials, safety
 - Use "{keyword}" naturally 4-6 times
 - Write in first person plural ("we tested", "we found"){link}
 
 FORMAT: Return ONLY clean Markdown. No YAML. No preamble. Start writing immediately."""
+
 
 def call_gemini(prompt: str, api_key: str) -> str:
     payload = json.dumps({
@@ -190,7 +182,7 @@ def call_gemini(prompt: str, api_key: str) -> str:
             body = exc.read().decode(errors="replace")
             if exc.code in (429, 503, 502):
                 wait = 30 * (2 ** attempt)
-                log(f"  {exc.code} attempt {attempt}/{MAX_RETRIES} — wait {wait}s")
+                log(f"  {exc.code} attempt {attempt}/{MAX_RETRIES} -- wait {wait}s")
                 time.sleep(wait)
             else:
                 raise RuntimeError(f"HTTP {exc.code}: {body[:200]}")
@@ -198,6 +190,7 @@ def call_gemini(prompt: str, api_key: str) -> str:
             log(f"  Network error attempt {attempt}: {exc.reason}")
             time.sleep(RPM_SLEEP * 2)
     raise RuntimeError(f"Failed after {MAX_RETRIES} attempts")
+
 
 def git_push(count: int) -> None:
     env = {**os.environ, "PATH": "/home/derek/bin:/usr/local/bin:/usr/bin:/bin", "GIT_TERMINAL_PROMPT": "0"}
@@ -210,12 +203,11 @@ def git_push(count: int) -> None:
         if r.returncode != 0:
             log(f"GIT FAIL: {r.stderr[:80]}")
             return
-    log(f"GIT PUSH OK — {count} posts live")
+    log(f"GIT PUSH OK -- {count} posts live")
+
 
 def main() -> None:
     gemini_key = os.environ.get("GEMINI_API_KEY", "").strip()
-    cse_key    = os.environ.get("GOOGLE_CSE_KEY", "").strip()
-    cse_cx     = os.environ.get("GOOGLE_CSE_CX", "").strip()
 
     if LOCK_PATH.exists():
         old = LOCK_PATH.read_text().strip()
@@ -223,7 +215,7 @@ def main() -> None:
             os.kill(int(old), 0)
             log(f"Already running (PID {old}). Exiting."); return
         except (OSError, ValueError):
-            log(f"Stale lock (PID {old}) — clearing"); LOCK_PATH.unlink()
+            log(f"Stale lock (PID {old}) -- clearing"); LOCK_PATH.unlink()
     LOCK_PATH.write_text(str(os.getpid()))
 
     try:
@@ -236,7 +228,7 @@ def main() -> None:
         POSTS_DIR.mkdir(parents=True, exist_ok=True)
         today = datetime.date.today().isoformat()
         generated = skipped = failed = 0
-        log(f"START v13 (real-product + validated) — {len(TOPICS)} articles — model={MODEL}")
+        log(f"START v13 -- {len(TOPICS)} articles -- model={MODEL}")
 
         for i, (slug, title, keyword, fmt) in enumerate(TOPICS, 1):
             fname = f"{today}-{slugify(slug)}.md"
@@ -255,15 +247,11 @@ def main() -> None:
             else:
                 log(f"  WARN: no product entry for {slug}")
 
-            validation = fetch_validation_context(
-                product.get("name", keyword), keyword, cse_key, cse_cx
-            )
-
             try:
-                prompt = make_prompt(title, keyword, slug, fmt, product, validation)
+                prompt = make_prompt(title, keyword, slug, fmt, product)
                 content = call_gemini(prompt, gemini_key)
                 if len(content) < 2000:
-                    log(f"  WARN: only {len(content)} chars — may be truncated")
+                    log(f"  WARN: only {len(content)} chars -- may be truncated")
                 affiliate_url = product.get("url", "")
                 fpath.write_text(
                     front_matter(title, keyword, affiliate_url) + "\n" + content,
@@ -279,9 +267,10 @@ def main() -> None:
                 log(f"  Waiting {INTER_DELAY//60}min...")
                 time.sleep(INTER_DELAY)
 
-        log(f"DONE — {generated} written, {skipped} skipped, {failed} failed")
+        log(f"DONE -- {generated} written, {skipped} skipped, {failed} failed")
     finally:
         if LOCK_PATH.exists(): LOCK_PATH.unlink()
+
 
 if __name__ == "__main__":
     main()
