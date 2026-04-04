@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-PawPicks Content Generator v11 — Real Product + Web-Validated Pipeline
+PawPicks Content Generator v12 — Real Product + Web-Validated Pipeline
 - Loads products.json for real affiliate links per topic
 - Web searches Reddit + review sites for real owner sentiment
 - Flexible article format: single_review, roundup, buying_guide
@@ -260,12 +260,12 @@ def main() -> None:
         POSTS_DIR.mkdir(parents=True, exist_ok=True)
         today = datetime.date.today().isoformat()
         generated = skipped = failed = 0
-        log(f"START v11 (real-product + validated) — {len(TOPICS)} articles — model={MODEL}")
+        log(f"START v12 (real-product + validated) — {len(TOPICS)} articles — model={MODEL}")
 
         for i, (slug, title, keyword, fmt) in enumerate(TOPICS, 1):
             fname = f"{today}-{slugify(slug)}.md"
             fpath = POSTS_DIR / fname
-            if fpath.exists() and fpath.stat().st_size > 2000:
+            if fpath.exists() and fpath.stat().st_size > 7000:
                 log(f"SKIP [{i}/{len(TOPICS)}] {fname} (already good)"); skipped += 1; continue
             if fpath.exists():
                 log(f"REDO [{i}/{len(TOPICS)}] {fname} (truncated)"); fpath.unlink()
@@ -295,6 +295,7 @@ def main() -> None:
                 )
                 log(f"  SAVED {fname} ({fpath.stat().st_size} bytes)")
                 generated += 1
+                git_push(1)
             except Exception as exc:
                 log(f"  FAIL: {exc}"); failed += 1
 
@@ -303,8 +304,6 @@ def main() -> None:
                 time.sleep(INTER_DELAY)
 
         log(f"DONE — {generated} written, {skipped} skipped, {failed} failed")
-        if generated > 0:
-            git_push(generated)
     finally:
         if LOCK_PATH.exists(): LOCK_PATH.unlink()
 
