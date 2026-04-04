@@ -21,3 +21,5 @@ dc_keepalive.sh
 ctx_bridge.py
 *.py
 !generate_posts.py
+autopublish.sh
+*:Zone.Identifier
