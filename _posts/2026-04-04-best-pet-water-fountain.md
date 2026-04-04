@@ -2,7 +2,7 @@
 layout: post
 title: "PetSafe Drinkwell Platinum Fountain Review"
 date: 2026-04-04
-categories: [pet-accessories]
+categories: [pet-feeding, both]
 species: both
 tags: [pet water fountain]
 description: "PetSafe Drinkwell Platinum Fountain Review - expert reviews and buying guide."

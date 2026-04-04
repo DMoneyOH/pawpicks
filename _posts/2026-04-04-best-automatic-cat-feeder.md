@@ -2,7 +2,7 @@
 layout: post
 title: "PETLIBRO Automatic Cat Feeder Review"
 date: 2026-04-04
-categories: [pet-accessories]
+categories: [cat-feeders, cat]
 species: cat
 tags: [automatic cat feeder]
 description: "PETLIBRO Automatic Cat Feeder Review - expert reviews and buying guide."

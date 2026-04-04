@@ -2,7 +2,7 @@
 layout: post
 title: "Best Dog Collars for Small Breeds"
 date: 2026-04-04
-categories: [pet-accessories]
+categories: [dog-collars, dog]
 species: dog
 tags: [dog collars small breeds]
 description: "Best Dog Collars for Small Breeds - expert reviews and buying guide."

@@ -2,7 +2,7 @@
 layout: post
 title: "Best Cat Litter for Odor Control"
 date: 2026-04-04
-categories: [pet-accessories]
+categories: [cat-litter, cat]
 species: cat
 tags: [cat litter odor control]
 description: "Best Cat Litter for Odor Control - expert reviews and buying guide."

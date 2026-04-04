@@ -2,7 +2,7 @@
 layout: post
 title: "Best Cat Scratching Posts That Last"
 date: 2026-04-04
-categories: [pet-accessories]
+categories: [cat-toys, cat]
 species: cat
 tags: [cat scratching post]
 description: "Best Cat Scratching Posts That Last - expert reviews and buying guide."
