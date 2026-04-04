@@ -16,7 +16,7 @@ LOCK_PATH = Path("/tmp/pawpicks_gen.lock")
 
 MODEL       = "gemini-2.5-flash"
 GEMINI_URL  = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
-INTER_DELAY = 900
+INTER_DELAY = 300
 RPM_SLEEP   = 8
 MAX_RETRIES = 3
 
