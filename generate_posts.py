@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-PawPicks Content Generator v9 — Single-Pass Pipeline
-- One prompt: draft + grammar + humanize + fact-check combined
-- Eliminates quality pass truncation bug
-- gemini-2.5-flash, 4096 max_tokens
+PawPicks Content Generator v10 — CSE-Grounded Pipeline
+- Queries Google Custom Search API for real product names before each article
+- Injects real product names into Gemini prompt (no more fictional brands)
+- Gemini-2.5-flash for content generation
 - 15 min between articles, auto git push
 """
-import os, re, json, datetime, time, urllib.request, urllib.error, subprocess
+import os, re, json, datetime, time, urllib.request, urllib.error, urllib.parse, subprocess
 from pathlib import Path
 
 REPO_DIR  = Path(__file__).parent.resolve()
@@ -14,11 +14,13 @@ POSTS_DIR = REPO_DIR / "_posts"
 LOG_PATH  = Path("/tmp/pawpicks_gen.log")
 LOCK_PATH = Path("/tmp/pawpicks_gen.lock")
 
-MODEL      = "gemini-2.5-flash"
-GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+MODEL       = "gemini-2.5-flash"
+GEMINI_URL  = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+CSE_URL     = "https://www.googleapis.com/customsearch/v1"
 INTER_DELAY = 900
 RPM_SLEEP   = 8
 MAX_RETRIES = 3
+CSE_RESULTS = 5
 
 TOPICS = [
     ("best-dog-collars-small-breeds",    "Best Dog Collars for Small Breeds",          "dog collars small breeds"),
@@ -70,34 +72,76 @@ def front_matter(title: str, keyword: str) -> str:
         f'description: "{title} - expert reviews and buying guide."\n---\n'
     )
 
-def make_prompt(title: str, keyword: str, slug: str) -> str:
+def fetch_real_products(keyword: str, cse_key: str, cse_cx: str) -> list:
+    """Query Google CSE and extract real product names from result titles."""
+    if not cse_key or not cse_cx:
+        log("  WARN: CSE keys missing — skipping product lookup")
+        return []
+    query = urllib.parse.urlencode({
+        "key": cse_key,
+        "cx": cse_cx,
+        "q": f"best {keyword} review",
+        "num": CSE_RESULTS,
+    })
+    url = f"{CSE_URL}?{query}"
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "PawPicksBot/1.0"})
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            data = json.loads(resp.read())
+        items = data.get("items", [])
+        products = []
+        for item in items:
+            title = item.get("title", "")
+            clean = re.split(r' [-|] ', title)[0].strip()
+            if clean and len(clean) > 5:
+                products.append(clean)
+        log(f"  CSE: found {len(products)} product references for '{keyword}'")
+        return products[:CSE_RESULTS]
+    except Exception as exc:
+        log(f"  CSE WARN: {exc} — proceeding without real products")
+        return []
+
+def make_prompt(title: str, keyword: str, slug: str, products: list) -> str:
     link = ""
     if slug in INTERNAL_LINKS:
         url, anchor = INTERNAL_LINKS[slug]
         link = f'\nNaturally include this markdown link once where relevant: [{anchor}]({url})'
 
+    if products:
+        product_block = (
+            "REAL PRODUCTS TO FEATURE (use these actual product/brand names — do not invent names):\n"
+            + "\n".join(f"- {p}" for p in products)
+            + "\nIf you need a 4th or 5th product and the list is short, add one well-known real brand.\n"
+        )
+    else:
+        product_block = (
+            "Use real, well-known pet product brand names (e.g. Ruffwear, PetSafe, Frisco, Kong, "
+            "Blue Buffalo, Chewy house brand). Do not invent fictional brand names.\n"
+        )
+
     return f"""You are a senior writer and editor for PawPicks, a friendly budget-focused pet product review blog.
 
 Write a complete, polished, publish-ready blog post. Title: "{title}". Focus keyword: "{keyword}".
 
+{product_block}
 LENGTH: 950-1050 words of body content (not counting front matter). This is a firm requirement.
 
 STRUCTURE (all sections required):
 - Opening paragraph (100+ words): Hook with a relatable pet owner moment. Warm, personal tone.
-- 5 Product Reviews: Each gets an H3 heading with product name, 60-80 word description, 3 bullet pros, 2 bullet cons.
-- Comparison Table: Markdown table with columns — Product | Best For | Material | Adjustable | Our Rating
+- 5 Product Reviews: Each gets an H3 heading with the real product name, 60-80 word description, 3 bullet pros, 2 bullet cons.
+- Comparison Table: Markdown table — Product | Best For | Material | Adjustable | Our Rating
 - Buying Guide (H2, 150+ words): 4-5 practical tips for choosing the right product.
 - Closing paragraph (80+ words): Clear recommendation, warm sign-off.
 
-WRITING STYLE (apply throughout — do not do these in a separate pass, write this way from the start):
-- Conversational, warm, like a knowledgeable friend — not a corporate reviewer
+WRITING STYLE:
+- Conversational, warm, like a knowledgeable friend
 - Vary sentence length. Mix short punchy sentences with longer flowing ones.
-- NO AI clichés: never use "delve", "it's worth noting", "in conclusion", "look no further", "this article will explore", "game-changer", "comprehensive guide"
-- Pet care facts must be accurate (breeds, behavior, materials, sizing). Products are fictional brands — that's fine.
+- NO AI clichés: never use "delve", "it's worth noting", "in conclusion", "look no further", "game-changer", "comprehensive guide"
+- Pet care facts must be accurate (breeds, behavior, materials, sizing).
 - Use "{keyword}" naturally 4-6 times
 - Write in first person plural ("we tested", "we found") for authority{link}
 
-FORMAT: Return ONLY clean Markdown body. No YAML front matter. No preamble. No "Here is your article:" — just start writing."""
+FORMAT: Return ONLY clean Markdown body. No YAML. No preamble. Just start writing."""
 
 
 def call_gemini(prompt: str, api_key: str) -> str:
@@ -148,7 +192,10 @@ def git_push(count: int) -> None:
     log(f"GIT PUSH OK — {count} posts live")
 
 def main() -> None:
-    api_key = os.environ.get("GEMINI_API_KEY", "").strip()
+    gemini_key = os.environ.get("GEMINI_API_KEY", "").strip()
+    cse_key    = os.environ.get("GOOGLE_CSE_KEY", "").strip()
+    cse_cx     = os.environ.get("GOOGLE_CSE_CX", "").strip()
+
     if LOCK_PATH.exists():
         old = LOCK_PATH.read_text().strip()
         try:
@@ -157,13 +204,18 @@ def main() -> None:
         except (OSError, ValueError):
             log(f"Stale lock (PID {old}) — clearing"); LOCK_PATH.unlink()
     LOCK_PATH.write_text(str(os.getpid()))
+
     try:
-        if not api_key:
+        if not gemini_key:
             log("ERROR: GEMINI_API_KEY not set"); return
+        if not cse_key or not cse_cx:
+            log("WARN: CSE keys not set — articles will use fallback brand names")
+
         POSTS_DIR.mkdir(parents=True, exist_ok=True)
         today = datetime.date.today().isoformat()
         generated = skipped = failed = 0
-        log(f"START v9 (single-pass) — {len(TOPICS)} articles — model={MODEL}")
+        log(f"START v10 (CSE-grounded) — {len(TOPICS)} articles — model={MODEL}")
+        log(f"  CSE active: {'yes' if cse_key and cse_cx else 'NO — fallback mode'}")
 
         for i, (slug, title, keyword) in enumerate(TOPICS, 1):
             fname = f"{today}-{slugify(slug)}.md"
@@ -176,8 +228,13 @@ def main() -> None:
 
             log(f"WRITE [{i}/{len(TOPICS)}] {title}")
             time.sleep(RPM_SLEEP)
+
+            # Step 1: fetch real product names via CSE
+            products = fetch_real_products(keyword, cse_key, cse_cx)
+
+            # Step 2: generate article grounded in real products
             try:
-                content = call_gemini(make_prompt(title, keyword, slug), api_key)
+                content = call_gemini(make_prompt(title, keyword, slug, products), gemini_key)
                 if len(content) < 2000:
                     log(f"  WARN: content only {len(content)} chars — may be truncated")
                 fpath.write_text(front_matter(title, keyword) + "\n" + content, encoding="utf-8")
