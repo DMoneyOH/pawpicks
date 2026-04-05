@@ -1,0 +1,24 @@
+---
+layout: null
+---
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>{{ site.title }} - Cat Products</title>
+    <description>Cat product reviews from {{ site.title }}</description>
+    <link>{{ site.url }}</link>
+    <atom:link href="{{ site.url }}/feed-cats.xml" rel="self" type="application/rss+xml"/>
+    {% for post in site.posts %}
+      {% if post.species == 'cat' or post.species == 'both' %}
+    <item>
+      <title>{{ post.title | xml_escape }}</title>
+      <description>{{ post.description | xml_escape }}</description>
+      <pubDate>{{ post.date | date_to_rfc822 }}</pubDate>
+      <link>{{ site.url }}{{ post.url }}</link>
+      <guid isPermaLink="true">{{ site.url }}{{ post.url }}</guid>
+      {% if post.image %}<enclosure url="{{ post.image }}" type="image/jpeg"/>{% endif %}
+    </item>
+      {% endif %}
+    {% endfor %}
+  </channel>
+</rss>
