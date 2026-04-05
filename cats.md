@@ -7,15 +7,16 @@ permalink: /cats/
 <section class="posts-section">
   <div class="section-header">
     <h2 class="section-title">Cat Product Reviews</h2>
-    <span class="section-count">{{ site.posts | where_exp: "post", "post.species == 'cat' or post.species == 'both'" | size }} reviews</span>
+    {% assign cat_only = site.posts | where: "species", "cat" %}
+    {% assign cat_both = site.posts | where: "species", "both" %}
+    {% assign cat_posts = cat_only | concat: cat_both %}
+    <span class="section-count">{{ cat_posts | size }} reviews</span>
   </div>
   <div class="post-grid">
-    {% assign cat_posts = site.posts | where_exp: "post", "post.species == 'cat' or post.species == 'both'" %}
     {% if cat_posts.size == 0 %}
-      {% assign cat_posts = site.posts %}
-    {% endif %}
-    {% for post in cat_posts limit:20 %}
-      {% if post.title contains 'Cat' or post.title contains 'Litter' or post.title contains 'Kitten' %}
+      <div class="empty-state"><p>🐾 Cat reviews coming soon!</p></div>
+    {% else %}
+      {% for post in cat_posts %}
       <article class="post-card">
         <div class="card-accent"></div>
         <a href="{{ post.url | prepend: site.baseurl }}" class="card-link">
@@ -33,7 +34,7 @@ permalink: /cats/
           </div>
         </a>
       </article>
-      {% endif %}
-    {% endfor %}
+      {% endfor %}
+    {% endif %}
   </div>
 </section>

@@ -1,28 +1,30 @@
 ---
 layout: default
 title: Dog Product Reviews | Happy Pet Product Reviews
-description: In-depth reviews of the best dog products - collars, harnesses, beds, toys and more. Honest picks for every budget.
+description: In-depth reviews of the best dog products - collars, harnesses, toys, beds and more. Honest picks for every budget.
 permalink: /dogs/
 ---
 <section class="posts-section">
   <div class="section-header">
     <h2 class="section-title">Dog Product Reviews</h2>
-    <span class="section-count">{{ site.posts | where_exp: "post", "post.species == 'dog' or post.species == 'both'" | size }} reviews</span>
+    {% assign dog_only = site.posts | where: "species", "dog" %}
+    {% assign dog_both = site.posts | where: "species", "both" %}
+    {% assign dog_posts = dog_only | concat: dog_both %}
+    <span class="section-count">{{ dog_posts | size }} reviews</span>
   </div>
   <div class="post-grid">
-    {% assign dog_posts = site.posts | where_exp: "post", "post.species == 'dog' or post.species == 'both'" %}
     {% if dog_posts.size == 0 %}
-      {% assign dog_posts = site.posts %}
-    {% endif %}
-    {% assign emojis = "🦮,🐕,🎾,🛏️,📋" | split: "," %}
-    {% for post in dog_posts limit:10 %}
-      {% if post.title contains 'Dog' or post.title contains 'Puppy' or post.title contains 'Harness' or post.title contains 'Training' %}
+      <div class="empty-state"><p>🐾 Dog reviews coming soon!</p></div>
+    {% else %}
+      {% for post in dog_posts %}
       <article class="post-card">
         <div class="card-accent"></div>
         <a href="{{ post.url | prepend: site.baseurl }}" class="card-link">
           <div class="card-top">
-            <span class="card-category">Dog Products</span>
-            <span class="card-emoji">🐕</span>
+            <div class="card-badges">
+              <span class="card-category">{{ post.categories | first | replace: "-", " " | capitalize }}</span>
+              <span class="card-species species-dog">🐕 Dog</span>
+            </div>
           </div>
           <h2 class="card-title">{{ post.title }}</h2>
           <p class="card-excerpt">{{ post.excerpt | strip_html | truncate: 115 }}</p>
@@ -32,19 +34,7 @@ permalink: /dogs/
           </div>
         </a>
       </article>
-      {% endif %}
-    {% endfor %}
-    {% assign count = 0 %}
-    {% for post in dog_posts limit:10 %}
-      {% if post.title contains 'Dog' or post.title contains 'Puppy' or post.title contains 'Harness' or post.title contains 'Training' %}
-        {% assign count = count | plus: 1 %}
-      {% endif %}
-    {% endfor %}
-    {% if count == 0 %}
-    <div class="empty-state">
-      <p>🐶 Dog reviews are on their way!</p>
-      <small>We're writing in-depth dog product guides right now.</small>
-    </div>
+      {% endfor %}
     {% endif %}
   </div>
 </section>
