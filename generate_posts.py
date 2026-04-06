@@ -65,6 +65,20 @@ MAX_REVIEW_ATTEMPTS = 2  # 1 rewrite attempt before GitHub issue + skip
 GITHUB_REPO      = "DMoneyOH/pawpicks"
 GITHUB_ASSIGNEE  = "DMoneyOH"
 
+SITE_BASE = "https://happypetproductreviews.com"
+
+def build_url(slug: str, utm: bool = False) -> str:
+    """
+    Single source of truth for constructing article URLs.
+    Derives category from SLUG_CATEGORIES — never hardcoded elsewhere.
+    utm=True appends Pinterest UTM params (sheet/pin URLs).
+    """
+    category = SLUG_CATEGORIES.get(slug, 'pet-accessories')
+    base = f"{SITE_BASE}/{category}/{slug}/"
+    if utm:
+        return base + "?utm_source=pinterest&utm_medium=social&utm_campaign=pin"
+    return base
+
 # Topic definition: slug, title, keyword, article format
 TOPICS = [
     ("best-dog-collars-small-breeds",    "Best Dog Collars for Small Breeds",          "dog collars small breeds",     "roundup"),
@@ -91,26 +105,27 @@ TOPICS = [
 ]
 
 INTERNAL_LINKS = {
-    "best-dog-collars-small-breeds":    ("/dog-harnesses/best-no-pull-dog-harness/", "no-pull harnesses for small dogs"),
-    "best-cat-scratching-posts":        ("/cat-litter/best-cat-litter-odor-control/", "cat litter for odor control"),
-    "best-no-pull-dog-harness":         ("/dog-collars/best-dog-collars-small-breeds/", "dog collars for small breeds"),
-    "best-automatic-cat-feeder":        ("/pet-feeding/best-pet-water-fountain/", "pet water fountains"),
-    "best-dog-toys-aggressive-chewers": ("/dog-beds/best-dog-beds-large-breeds/", "dog beds for large breeds"),
-    "best-cat-litter-odor-control":     ("/cat-scratching/best-cat-scratching-posts/", "cat scratching posts"),
-    "best-dog-beds-large-breeds":       ("/dog-toys/best-dog-toys-aggressive-chewers/", "toys for aggressive chewers"),
-    "best-pet-water-fountain":          ("/cat-feeders/best-automatic-cat-feeder/", "automatic cat feeders"),
-    "best-puppy-training-pads":         ("/dog-harnesses/best-no-pull-dog-harness/", "no-pull dog harnesses"),
-    "best-cat-carrier-travel":          ("/cat-feeders/best-automatic-cat-feeder/", "automatic cat feeders for travel"),
-    "best-gps-dog-collars":             ("/dog-collars/best-dog-collars-small-breeds/", "dog collars for small breeds"),
-    "best-self-cleaning-litter-boxes":  ("/cat-litter/best-cat-litter-odor-control/", "best cat litter for odor control"),
-    "best-senior-dog-food":             ("/dog-beds/best-dog-beds-large-breeds/", "orthopedic dog beds for seniors"),
-    "best-interactive-cat-toys":        ("/cat-scratching/best-cat-scratching-posts/", "cat scratching posts"),
-    "best-dog-crates":                  ("/dog-beds/best-dog-beds-large-breeds/", "dog beds for crate training"),
-    "best-grain-free-cat-food":         ("/cat-feeders/best-automatic-cat-feeder/", "automatic cat feeders"),
-    "best-pet-cameras":                 ("/dog-collars/best-gps-dog-collars/", "GPS dog trackers"),
-    "best-flea-prevention-dogs":        ("/dog-harnesses/best-no-pull-dog-harness/", "no-pull dog harnesses"),
-    "best-wet-cat-food":                ("/cat-feeders/best-automatic-cat-feeder/", "automatic cat feeders"),
-    "best-dog-dna-tests":               ("/dog-collars/best-gps-dog-collars/", "GPS dog collars"),
+    # All URLs derived via build_url() — stays in sync with SLUG_CATEGORIES automatically
+    "best-dog-collars-small-breeds":    (build_url("best-no-pull-dog-harness"),         "no-pull harnesses for small dogs"),
+    "best-cat-scratching-posts":        (build_url("best-cat-litter-odor-control"),      "cat litter for odor control"),
+    "best-no-pull-dog-harness":         (build_url("best-dog-collars-small-breeds"),     "dog collars for small breeds"),
+    "best-automatic-cat-feeder":        (build_url("best-pet-water-fountain"),           "pet water fountains"),
+    "best-dog-toys-aggressive-chewers": (build_url("best-dog-beds-large-breeds"),        "dog beds for large breeds"),
+    "best-cat-litter-odor-control":     (build_url("best-cat-scratching-posts"),         "cat scratching posts"),
+    "best-dog-beds-large-breeds":       (build_url("best-dog-toys-aggressive-chewers"),  "toys for aggressive chewers"),
+    "best-pet-water-fountain":          (build_url("best-automatic-cat-feeder"),         "automatic cat feeders"),
+    "best-puppy-training-pads":         (build_url("best-no-pull-dog-harness"),          "no-pull dog harnesses"),
+    "best-cat-carrier-travel":          (build_url("best-automatic-cat-feeder"),         "automatic cat feeders for travel"),
+    "best-gps-dog-collars":             (build_url("best-dog-collars-small-breeds"),     "dog collars for small breeds"),
+    "best-self-cleaning-litter-boxes":  (build_url("best-cat-litter-odor-control"),      "best cat litter for odor control"),
+    "best-senior-dog-food":             (build_url("best-dog-beds-large-breeds"),        "orthopedic dog beds for seniors"),
+    "best-interactive-cat-toys":        (build_url("best-cat-scratching-posts"),         "cat scratching posts"),
+    "best-dog-crates":                  (build_url("best-dog-beds-large-breeds"),        "dog beds for crate training"),
+    "best-grain-free-cat-food":         (build_url("best-automatic-cat-feeder"),         "automatic cat feeders"),
+    "best-pet-cameras":                 (build_url("best-gps-dog-collars"),              "GPS dog trackers"),
+    "best-flea-prevention-dogs":        (build_url("best-no-pull-dog-harness"),          "no-pull dog harnesses"),
+    "best-wet-cat-food":                (build_url("best-automatic-cat-feeder"),         "automatic cat feeders"),
+    "best-dog-dna-tests":               (build_url("best-gps-dog-collars"),              "GPS dog collars"),
 }
 
 def log(msg: str) -> None:
@@ -554,7 +569,7 @@ def main() -> None:
                 parts = fname.replace('.md','').split('-', 3)
                 slug_only = parts[3] if len(parts) == 4 else fname.replace('.md','')
                 category = fm_data.get('categories','').strip('[]')
-                article_url = f"https://happypetproductreviews.com/{category}/{slug_only}/?utm_source=pinterest&utm_medium=social&utm_campaign=pin"
+                article_url = build_url(slug, utm=True)
                 species = fm_data.get('species','both')
 
                 # 1. Generate branded Pinterest pin image FIRST
