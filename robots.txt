@@ -1,3 +1,4 @@
 User-agent: *
 Allow: /
-Sitemap: https://DMoneyOH.github.io/pawpicks/sitemap.xml
+
+Sitemap: https://www.happypetproductreviews.com/sitemap.xml
