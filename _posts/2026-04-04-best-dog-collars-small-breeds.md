@@ -5,7 +5,7 @@ date: 2026-04-04
 categories: [dog-collars]
 species: dog
 tags: [dog collars small breeds]
-description: "Best Dog Collars for Small Breeds - expert reviews and buying guide."
+description: "Finding a collar that fits a tiny neck without slipping or chafing is harder than it sounds — we found the ones that work."
 affiliate_url: "https://amzn.to/4cpySWA"
 image: "https://m.media-amazon.com/images/I/81ZjosKB0GL._AC_SL1500_.jpg"
 ---

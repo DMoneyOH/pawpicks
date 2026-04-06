@@ -5,7 +5,7 @@ date: 2026-04-04
 categories: [dog-beds]
 species: dog
 tags: [dog beds large breeds]
-description: "Barker Beds Orthopedic Dog Bed Review - expert reviews and buying guide."
+description: "Big dogs need real support — this orthopedic bed is built to last and actually holds its shape."
 affiliate_url: "https://amzn.to/4sdfLnc"
 image: "https://bigbarker.com/cdn/shop/files/HeadRest_7inch-Giant_CharcoalGrey_100_20_9ebbc3e7-d8a3-49bb-8db6-ea1d0d41a8bd.jpg"
 ---

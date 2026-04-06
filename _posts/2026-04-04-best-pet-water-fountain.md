@@ -5,7 +5,7 @@ date: 2026-04-04
 categories: [pet-feeding]
 species: both
 tags: [pet water fountain]
-description: "PetSafe Drinkwell Platinum Fountain Review - expert reviews and buying guide."
+description: "Cats and dogs drink more water when it's moving — this fountain is quiet, easy to clean, and built to last."
 affiliate_url: "https://amzn.to/3NNVKFY"
 image: "https://m.media-amazon.com/images/I/718yk3RUXAL._AC_SL1500_.jpg"
 ---

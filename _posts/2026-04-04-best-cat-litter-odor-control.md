@@ -5,7 +5,7 @@ date: 2026-04-04
 categories: [cat-litter]
 species: cat
 tags: [cat litter odor control]
-description: "Best Cat Litter for Odor Control - expert reviews and buying guide."
+description: "We tested the top litters so you can finally say goodbye to that smell — even with multiple cats."
 affiliate_url: "https://amzn.to/48cV2sA"
 image: "https://images-na.ssl-images-amazon.com/images/P/B000VDR8LA.01.LZZZZZZZ.jpg"
 ---
