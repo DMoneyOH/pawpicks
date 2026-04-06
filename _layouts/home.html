@@ -45,9 +45,12 @@ layout: default
     <button class="cat-pill" data-filter="dog">🐶 Dogs</button>
     <button class="cat-pill" data-filter="cat">🐱 Cats</button>
     <button class="cat-pill" data-filter="toy">🎾 Toys</button>
-    <button class="cat-pill" data-filter="bed">🛏️ Beds &amp; Comfort</button>
+    <button class="cat-pill" data-filter="bed">🛏️ Beds &amp; Crates</button>
     <button class="cat-pill" data-filter="feed">🍽️ Feeding</button>
     <button class="cat-pill" data-filter="travel">✈️ Travel</button>
+    <button class="cat-pill" data-filter="collar">🏷️ Collars &amp; Harnesses</button>
+    <button class="cat-pill" data-filter="care">🧼 Care &amp; Training</button>
+    <button class="cat-pill" data-filter="tech">📷 Tech</button>
   </div>
 </nav>
 {% endif %}
@@ -68,21 +71,44 @@ layout: default
     {% else %}
     {% for post in site.posts %}
     {% if post.species == "cat" %}
-      {% assign data_filter = "cat" %}
+      {% assign species_filter = "cat" %}
       {% assign species_label = "Cat" %}
       {% assign species_class = "species-cat" %}
     {% elsif post.species == "dog" %}
-      {% assign data_filter = "dog" %}
+      {% assign species_filter = "dog" %}
       {% assign species_label = "Dog" %}
       {% assign species_class = "species-dog" %}
     {% elsif post.species == "both" %}
-      {% assign data_filter = "dog cat" %}
+      {% assign species_filter = "dog cat" %}
       {% assign species_label = "" %}
       {% assign species_class = "species-both" %}
     {% else %}
-      {% assign data_filter = "all" %}
+      {% assign species_filter = "all" %}
       {% assign species_label = "" %}
       {% assign species_class = "species-both" %}
+    {% endif %}
+    {% assign post_cat = post.categories | first %}
+    {% if post_cat contains "toy" or post_cat contains "scratch" or post_cat contains "chew" %}
+      {% assign topic_filter = "toy" %}
+    {% elsif post_cat contains "bed" or post_cat contains "crate" %}
+      {% assign topic_filter = "bed" %}
+    {% elsif post_cat contains "feed" or post_cat contains "food" or post_cat contains "water" or post_cat contains "fountain" %}
+      {% assign topic_filter = "feed" %}
+    {% elsif post_cat contains "carrier" or post_cat contains "travel" or post_cat contains "stroller" %}
+      {% assign topic_filter = "travel" %}
+    {% elsif post_cat contains "collar" or post_cat contains "harness" or post_cat contains "leash" %}
+      {% assign topic_filter = "collar" %}
+    {% elsif post_cat contains "litter" or post_cat contains "grooming" or post_cat contains "health" or post_cat contains "training" %}
+      {% assign topic_filter = "care" %}
+    {% elsif post_cat contains "tech" or post_cat contains "camera" or post_cat contains "gps" %}
+      {% assign topic_filter = "tech" %}
+    {% else %}
+      {% assign topic_filter = "" %}
+    {% endif %}
+    {% if topic_filter != "" %}
+      {% assign data_filter = species_filter | append: " " | append: topic_filter %}
+    {% else %}
+      {% assign data_filter = species_filter %}
     {% endif %}
     <article class="post-card" data-filter="{{ data_filter }}">
       <div class="card-accent"></div>
@@ -163,7 +189,8 @@ layout: default
       var f = pill.dataset.filter;
       var visible = 0;
       cards.forEach(function(card){
-        var show = f === 'all' || card.dataset.filter.split(' ').includes(f);
+        var cardFilters = (card.dataset.filter || '').split(' ');
+        var show = f === 'all' || cardFilters.indexOf(f) !== -1;
         card.style.display = show ? '' : 'none';
         if(show) visible++;
       });
