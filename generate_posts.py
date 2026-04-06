@@ -374,7 +374,7 @@ def main() -> None:
                 parts = fname.replace('.md','').split('-', 3)
                 slug_only = parts[3] if len(parts) == 4 else fname.replace('.md','')
                 category = fm_data.get('categories','').strip('[]')
-                article_url = f"https://happypetproductreviews.com/{category}/{slug_only}/"
+                article_url = f"https://happypetproductreviews.com/{category}/{slug_only}/?utm_source=pinterest&utm_medium=social&utm_campaign=pin"
                 species = fm_data.get('species','both')
 
                 # 1. Generate branded Pinterest pin image FIRST
