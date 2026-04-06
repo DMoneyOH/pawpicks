@@ -15,6 +15,12 @@ try:
 except ImportError:
     GSHEETS_AVAILABLE = False
 
+try:
+    from generate_pin_images import make_pin_for_post
+    PIN_GEN_AVAILABLE = True
+except ImportError:
+    PIN_GEN_AVAILABLE = False
+
 REPO_DIR  = Path(__file__).parent.resolve()
 POSTS_DIR = REPO_DIR / "_posts"
 LOG_PATH  = Path("/tmp/pawpicks_gen.log")
@@ -232,7 +238,7 @@ def call_gemini(prompt: str, api_key: str) -> str:
 def git_push(count: int) -> None:
     env = {**os.environ, "PATH": "/home/derek/bin:/usr/local/bin:/usr/bin:/bin", "GIT_TERMINAL_PROMPT": "0"}
     for cmd in [
-        ["git", "-C", str(REPO_DIR), "add", "_posts/"],
+        ["git", "-C", str(REPO_DIR), "add", "_posts/", "assets/images/pins/"],
         ["git", "-C", str(REPO_DIR), "commit", "-m", f"auto: add {count} articles {datetime.date.today().isoformat()}"],
         ["git", "-C", str(REPO_DIR), "push", "origin", "main"],
     ]:
@@ -306,6 +312,24 @@ def main() -> None:
                 category = fm_data.get('categories','').strip('[]')
                 article_url = f"https://happypetproductreviews.com/{category}/{slug_only}/"
                 append_to_sheet(title, article_url, product.get('image',''), fm_data.get('species','both'))
+                # Generate branded Pinterest pin image
+                if PIN_GEN_AVAILABLE:
+                    try:
+                        pin_url = make_pin_for_post(
+                            title,
+                            fm_data.get('description',''),
+                            product.get('image',''),
+                            category,
+                            slug_only,
+                            generated  # theme index rotates by article count
+                        )
+                        # Update sheet Column C with branded pin URL
+                        append_to_sheet.__module__  # reuse sheet connection
+                        from generate_pin_images import update_sheets as _update_pin_sheets
+                        _update_pin_sheets([{'title':title,'species':fm_data.get('species','both'),'pin_url':pin_url}])
+                        log(f"  PIN: {pin_url}")
+                    except Exception as pe:
+                        log(f"  WARN: pin generation failed: {pe}")
                 generated += 1
                 git_push(1)
             except Exception as exc:
