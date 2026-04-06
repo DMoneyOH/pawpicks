@@ -83,50 +83,21 @@ def load_products() -> dict:
             return json.load(f)
     return {}
 
-def extract_asin_from_url(url: str) -> str:
-    """Extract ASIN from a full Amazon URL. Returns '' if not found."""
-    m = re.search(r'/(?:dp|gp/product)/([A-Z0-9]{10})', url)
-    return m.group(1) if m else ''
-
-def resolve_short_url(short_url: str) -> str:
-    """Follow amzn.to redirect to get the full Amazon URL. Returns '' on failure."""
-    try:
-        req = urllib.request.Request(short_url, method="HEAD")
-        req.add_header("User-Agent", "Mozilla/5.0")
-        with urllib.request.urlopen(req, timeout=10) as r:
-            return r.geturl()
-    except Exception:
-        return ''
-
-def build_used_asins() -> set:
-    """Scan all existing _posts/ files for affiliate_url ASINs already published."""
+def build_used_slugs() -> set:
+    """
+    Scan all existing _posts/ files and return the set of slugs already published.
+    Keys on slug (date-stripped filename) so duplicates across dates are caught.
+    e.g. '2026-04-04-best-dog-collars-small-breeds.md' -> 'best-dog-collars-small-breeds'
+    """
     used = set()
-    asin_re = re.compile(r'affiliate_url:\s*["\']?(https?://[^\s"\']+)["\']?')
     for md in POSTS_DIR.glob("*.md"):
-        try:
-            text = md.read_text(encoding="utf-8")
-            m = asin_re.search(text)
-            if m:
-                asin = extract_asin_from_url(m.group(1))
-                if asin:
-                    used.add(asin)
-        except Exception:
-            pass
+        parts = md.stem.split('-', 3)
+        if len(parts) == 4:
+            used.add(parts[3])
     return used
 
-def get_asin_for_product(product: dict) -> str:
-    """Get ASIN from product dict — use stored asin if present, else resolve short URL."""
-    if product.get('asin'):
-        return product['asin']
-    url = product.get('url', '')
-    if 'amzn.to' in url:
-        full = resolve_short_url(url)
-        asin = extract_asin_from_url(full)
-        return asin
-    return extract_asin_from_url(url)
-
 def make_review_prompt(title: str, keyword: str, content: str) -> str:
-    return f"""You are a senior human editor for Happy Pet Product Reviews. Your job is to evaluate whether this article reads like it was written by a real person — a trusted, warm, knowledgeable pet owner — or whether it reads like AI-generated content.
+    return f"""You are a senior human editor for Happy Pet Product Reviews. Evaluate whether this article reads like it was written by a real person — a trusted, warm, knowledgeable pet owner — or like AI-generated content.
 
 ARTICLE TITLE: {title}
 FOCUS KEYWORD: {keyword}
@@ -136,25 +107,12 @@ ARTICLE CONTENT:
 {content}
 ---
 
-Evaluate the article on these criteria and return ONLY a valid JSON object — no preamble, no markdown, no explanation outside the JSON:
+Return ONLY a single valid JSON object. No preamble, no explanation, no markdown fences, no trailing text. Start your response with {{ and end with }}.
 
-{{
-  "pass": true or false,
-  "scores": {{
-    "human_voice": <1-5, does it sound like a real person wrote this?>,
-    "warmth": <1-5, is it conversational and warm vs clinical/robotic?>,
-    "readability": <1-5, varied sentence length, natural flow?>,
-    "accuracy": <1-5, no obvious pet fact errors or vague filler?>,
-    "affiliate_link_present": true or false,
-    "disclosure_present": true or false,
-    "ai_cliches_found": ["list any found, empty array if none"]
-  }},
-  "flags": ["list specific issues found, empty array if none"],
-  "rewrite_instructions": "If pass is false, write specific instructions for the rewriter to fix the flagged issues. Be direct and concrete. If pass is true, write empty string."
-}}
+{{"pass": true or false, "scores": {{"human_voice": <1-5>, "warmth": <1-5>, "readability": <1-5>, "accuracy": <1-5>, "affiliate_link_present": true or false, "disclosure_present": true or false, "ai_cliches_found": ["list or empty array"]}}, "flags": ["list or empty array"], "rewrite_instructions": "specific instructions if pass is false, else empty string"}}
 
-PASS criteria: all scores >= 3, affiliate_link_present true, no more than 1 ai_cliche found.
-FAIL means rewrite_instructions must be specific and actionable."""
+PASS criteria: all scores >= 3, affiliate_link_present true, no more than 1 ai_cliche.
+If pass is false, rewrite_instructions must be specific and actionable — name exact sections and fixes needed."""
 
 def make_rewrite_prompt(title: str, keyword: str, content: str, instructions: str) -> str:
     return f"""You are a senior writer for Happy Pet Product Reviews. A human editor has reviewed your article and flagged specific issues. Rewrite the article fixing ONLY the flagged issues — do not change what is already working.
@@ -191,7 +149,7 @@ def review_and_rewrite(title: str, keyword: str, content: str, api_key: str) -> 
         payload = json.dumps({
             "model": REVIEWER_MODEL,
             "messages": [{"role": "user", "content": review_prompt}],
-            "max_tokens": 1024,
+            "max_tokens": 2048,
             "temperature": 0.2,
         }).encode()
         headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
@@ -201,11 +159,20 @@ def review_and_rewrite(title: str, keyword: str, content: str, api_key: str) -> 
                 data = json.loads(resp.read())
                 raw = data["choices"][0]["message"]["content"].strip()
                 # Strip markdown fences if present
-                raw = re.sub(r'^```json\s*', '', raw)
-                raw = re.sub(r'\s*```$', '', raw)
+                raw = re.sub(r'^```json\s*', '', raw, flags=re.MULTILINE)
+                raw = re.sub(r'\s*```\s*$', '', raw, flags=re.MULTILINE)
+                raw = raw.strip()
+                # Extract first JSON object if extra text present
+                m = re.search(r'\{.*\}', raw, re.DOTALL)
+                if m:
+                    raw = m.group(0)
                 scorecard = json.loads(raw)
+        except json.JSONDecodeError as e:
+            log(f"  WARN: review JSON parse failed: {e} | raw[:200]: {raw[:200]} -- skipping review")
+            return content, True, []
         except Exception as e:
             log(f"  WARN: review call failed: {e} -- skipping review")
+            return content, True, []
             return content, True, []
 
         passed  = scorecard.get("pass", False)
@@ -474,9 +441,9 @@ def main() -> None:
         products = load_products()
         log(f"Loaded products.json: {len(products)} entries")
 
-        # Build set of ASINs already published in _posts/
-        used_asins = build_used_asins()
-        log(f"Dedup: {len(used_asins)} ASINs already published")
+        # Build set of slugs already published across all dates
+        used_slugs = build_used_slugs()
+        log(f"Dedup: {len(used_slugs)} slugs already published")
 
         POSTS_DIR.mkdir(parents=True, exist_ok=True)
         today = datetime.date.today().isoformat()
@@ -484,19 +451,16 @@ def main() -> None:
         log(f"START v14 -- {len(TOPICS)} articles -- model={MODEL} reviewer={'ON' if REVIEWER_ENABLED else 'OFF'}")
 
         for i, (slug, title, keyword, fmt) in enumerate(TOPICS, 1):
+            # Slug-based dedup: skip if this slug exists under ANY date
+            if slug in used_slugs:
+                log(f"SKIP [{i}/{len(TOPICS)}] {slug} -- already published"); skipped += 1; continue
+
             fname = f"{today}-{slugify(slug)}.md"
             fpath = POSTS_DIR / fname
-            if fpath.exists() and fpath.stat().st_size > 7000:
-                log(f"SKIP [{i}/{len(TOPICS)}] {fname} (already good)"); skipped += 1; continue
-            if fpath.exists():
-                log(f"REDO [{i}/{len(TOPICS)}] {fname} (truncated)"); fpath.unlink()
 
             product = products.get(slug, {})
             if product:
-                asin = get_asin_for_product(product)
-                if asin and asin in used_asins:
-                    log(f"SKIP [{i}/{len(TOPICS)}] {slug} -- ASIN {asin} already published"); skipped += 1; continue
-                log(f"  Product: {product['name']}" + (f" (ASIN: {asin})" if asin else " (ASIN: unresolved)"))
+                log(f"  Product: {product['name']}")
             else:
                 log(f"  WARN: no product entry for {slug}")
 
@@ -515,7 +479,8 @@ def main() -> None:
                 if len(content) < 2000:
                     log(f"  WARN: only {len(content)} chars -- may be truncated")
 
-                # Review + rewrite loop
+                # Review + rewrite loop — sleep first to avoid 429 back-to-back
+                time.sleep(RPM_SLEEP)
                 content, review_passed, review_flags = review_and_rewrite(title, keyword, content, gemini_key)
                 if not review_passed:
                     create_github_issue(title, slug, review_flags)
@@ -566,10 +531,7 @@ def main() -> None:
 
                 # 3. Push article + pin image together
                 generated += 1
-                if product:
-                    asin = get_asin_for_product(product)
-                    if asin:
-                        used_asins.add(asin)
+                used_slugs.add(slug)
                 git_push(1)
             except Exception as exc:
                 log(f"  FAIL: {exc}"); failed += 1
