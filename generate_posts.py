@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """
 Happy Pet Product Reviews Generator v14 — Real Product Pipeline + AI Review Layer
-- Loads products.json for real affiliate links per topic
+- Loads products.json for real affiliate links per topic (20 topics)
 - Flexible article format: single_review, roundup, buying_guide
 - Gemini-2.5-flash for content generation
 - AI reviewer: flag + auto-rewrite; GitHub issue on persistent failure
+- Slug-based dedup across all dates
 - 15 min between articles, per-article git push
 """
 import os, re, json, datetime, time, urllib.request, urllib.error, urllib.parse, subprocess
@@ -52,19 +53,40 @@ TOPICS = [
     ("best-pet-water-fountain",          "PetSafe Drinkwell Platinum Fountain Review",  "pet water fountain",           "single_review"),
     ("best-puppy-training-pads",         "How to Choose Puppy Training Pads",           "puppy training pads",          "buying_guide"),
     ("best-cat-carrier-travel",          "How to Choose the Best Cat Carrier",          "cat carrier travel",           "buying_guide"),
+    # Articles 11-20
+    ("best-gps-dog-collars",             "Best GPS Dog Collars of 2026",               "gps dog collar tracker",       "roundup"),
+    ("best-self-cleaning-litter-boxes",  "Best Self-Cleaning Litter Boxes",             "self cleaning litter box",     "roundup"),
+    ("best-senior-dog-food",             "Best Dog Food for Senior Dogs",               "senior dog food",              "roundup"),
+    ("best-interactive-cat-toys",        "Best Interactive Cat Toys to Keep Cats Busy", "interactive cat toys",         "roundup"),
+    ("best-dog-crates",                  "Best Dog Crates for Every Size",              "dog crate",                    "roundup"),
+    ("best-grain-free-cat-food",         "Best Grain-Free Cat Food",                    "grain free cat food",          "roundup"),
+    ("best-pet-cameras",                 "Best Pet Cameras for Checking on Your Dog",   "pet camera treat dispenser",   "roundup"),
+    ("best-flea-prevention-dogs",        "Best Flea Prevention for Dogs",               "flea prevention dogs",         "buying_guide"),
+    ("best-wet-cat-food",                "Best Wet Cat Food Your Cat Will Actually Eat","wet cat food",                 "roundup"),
+    ("best-dog-dna-tests",               "Best Dog DNA Tests Reviewed",                 "dog dna test kit",             "roundup"),
 ]
 
 INTERNAL_LINKS = {
-    "best-dog-collars-small-breeds":    ("/pawpicks/pet-accessories/best-no-pull-dog-harness/", "no-pull harnesses for small dogs"),
-    "best-cat-scratching-posts":        ("/pawpicks/pet-accessories/best-cat-litter-odor-control/", "cat litter for odor control"),
-    "best-no-pull-dog-harness":         ("/pawpicks/pet-accessories/best-dog-collars-small-breeds/", "dog collars for small breeds"),
-    "best-automatic-cat-feeder":        ("/pawpicks/pet-accessories/best-pet-water-fountain/", "pet water fountains"),
-    "best-dog-toys-aggressive-chewers": ("/pawpicks/pet-accessories/best-dog-beds-large-breeds/", "dog beds for large breeds"),
-    "best-cat-litter-odor-control":     ("/pawpicks/pet-accessories/best-cat-scratching-posts/", "cat scratching posts"),
-    "best-dog-beds-large-breeds":       ("/pawpicks/pet-accessories/best-dog-toys-aggressive-chewers/", "toys for aggressive chewers"),
-    "best-pet-water-fountain":          ("/pawpicks/pet-accessories/best-automatic-cat-feeder/", "automatic cat feeders"),
-    "best-puppy-training-pads":         ("/pawpicks/pet-accessories/best-no-pull-dog-harness/", "no-pull dog harnesses"),
-    "best-cat-carrier-travel":          ("/pawpicks/pet-accessories/best-automatic-cat-feeder/", "automatic cat feeders for travel"),
+    "best-dog-collars-small-breeds":    ("/pet-accessories/best-no-pull-dog-harness/", "no-pull harnesses for small dogs"),
+    "best-cat-scratching-posts":        ("/pet-accessories/best-cat-litter-odor-control/", "cat litter for odor control"),
+    "best-no-pull-dog-harness":         ("/pet-accessories/best-dog-collars-small-breeds/", "dog collars for small breeds"),
+    "best-automatic-cat-feeder":        ("/pet-accessories/best-pet-water-fountain/", "pet water fountains"),
+    "best-dog-toys-aggressive-chewers": ("/pet-accessories/best-dog-beds-large-breeds/", "dog beds for large breeds"),
+    "best-cat-litter-odor-control":     ("/pet-accessories/best-cat-scratching-posts/", "cat scratching posts"),
+    "best-dog-beds-large-breeds":       ("/pet-accessories/best-dog-toys-aggressive-chewers/", "toys for aggressive chewers"),
+    "best-pet-water-fountain":          ("/pet-accessories/best-automatic-cat-feeder/", "automatic cat feeders"),
+    "best-puppy-training-pads":         ("/pet-accessories/best-no-pull-dog-harness/", "no-pull dog harnesses"),
+    "best-cat-carrier-travel":          ("/pet-accessories/best-automatic-cat-feeder/", "automatic cat feeders for travel"),
+    "best-gps-dog-collars":             ("/pet-accessories/best-dog-collars-small-breeds/", "dog collars for small breeds"),
+    "best-self-cleaning-litter-boxes":  ("/pet-accessories/best-cat-litter-odor-control/", "best cat litter for odor control"),
+    "best-senior-dog-food":             ("/pet-accessories/best-dog-beds-large-breeds/", "orthopedic dog beds for seniors"),
+    "best-interactive-cat-toys":        ("/pet-accessories/best-cat-scratching-posts/", "cat scratching posts"),
+    "best-dog-crates":                  ("/pet-accessories/best-dog-beds-large-breeds/", "dog beds for crate training"),
+    "best-grain-free-cat-food":         ("/pet-accessories/best-automatic-cat-feeder/", "automatic cat feeders"),
+    "best-pet-cameras":                 ("/pet-accessories/best-gps-dog-collars/", "GPS dog trackers"),
+    "best-flea-prevention-dogs":        ("/pet-accessories/best-no-pull-dog-harness/", "no-pull dog harnesses"),
+    "best-wet-cat-food":                ("/pet-accessories/best-automatic-cat-feeder/", "automatic cat feeders"),
+    "best-dog-dna-tests":               ("/pet-accessories/best-gps-dog-collars/", "GPS dog collars"),
 }
 
 def log(msg: str) -> None:
