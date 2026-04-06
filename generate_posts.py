@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """
-Happy Pet Product Reviews Generator v13 — Real Product Pipeline
+Happy Pet Product Reviews Generator v14 — Real Product Pipeline + AI Review Layer
 - Loads products.json for real affiliate links per topic
 - Flexible article format: single_review, roundup, buying_guide
 - Gemini-2.5-flash for content generation
+- AI reviewer: flag + auto-rewrite; GitHub issue on persistent failure
 - 15 min between articles, per-article git push
 """
 import os, re, json, datetime, time, urllib.request, urllib.error, urllib.parse, subprocess
@@ -31,6 +32,13 @@ GEMINI_URL  = "https://generativelanguage.googleapis.com/v1beta/openai/chat/comp
 INTER_DELAY = 300
 RPM_SLEEP   = 8
 MAX_RETRIES = 3
+
+# Reviewer config — swap REVIEWER_MODEL to claude API in cloud migration
+REVIEWER_MODEL   = "gemini-2.5-flash"
+REVIEWER_ENABLED = True
+MAX_REVIEW_ATTEMPTS = 2  # 1 rewrite attempt before GitHub issue + skip
+GITHUB_REPO      = "DMoneyOH/pawpicks"
+GITHUB_ASSIGNEE  = "DMoneyOH"
 
 # Topic definition: slug, title, keyword, article format
 TOPICS = [
@@ -116,6 +124,157 @@ def get_asin_for_product(product: dict) -> str:
         asin = extract_asin_from_url(full)
         return asin
     return extract_asin_from_url(url)
+
+def make_review_prompt(title: str, keyword: str, content: str) -> str:
+    return f"""You are a senior human editor for Happy Pet Product Reviews. Your job is to evaluate whether this article reads like it was written by a real person — a trusted, warm, knowledgeable pet owner — or whether it reads like AI-generated content.
+
+ARTICLE TITLE: {title}
+FOCUS KEYWORD: {keyword}
+
+ARTICLE CONTENT:
+---
+{content}
+---
+
+Evaluate the article on these criteria and return ONLY a valid JSON object — no preamble, no markdown, no explanation outside the JSON:
+
+{{
+  "pass": true or false,
+  "scores": {{
+    "human_voice": <1-5, does it sound like a real person wrote this?>,
+    "warmth": <1-5, is it conversational and warm vs clinical/robotic?>,
+    "readability": <1-5, varied sentence length, natural flow?>,
+    "accuracy": <1-5, no obvious pet fact errors or vague filler?>,
+    "affiliate_link_present": true or false,
+    "disclosure_present": true or false,
+    "ai_cliches_found": ["list any found, empty array if none"]
+  }},
+  "flags": ["list specific issues found, empty array if none"],
+  "rewrite_instructions": "If pass is false, write specific instructions for the rewriter to fix the flagged issues. Be direct and concrete. If pass is true, write empty string."
+}}
+
+PASS criteria: all scores >= 3, affiliate_link_present true, no more than 1 ai_cliche found.
+FAIL means rewrite_instructions must be specific and actionable."""
+
+def make_rewrite_prompt(title: str, keyword: str, content: str, instructions: str) -> str:
+    return f"""You are a senior writer for Happy Pet Product Reviews. A human editor has reviewed your article and flagged specific issues. Rewrite the article fixing ONLY the flagged issues — do not change what is already working.
+
+ARTICLE TITLE: {title}
+FOCUS KEYWORD: {keyword}
+
+EDITOR FEEDBACK:
+{instructions}
+
+ORIGINAL ARTICLE:
+---
+{content}
+---
+
+Return ONLY the rewritten article in clean Markdown. No preamble. No YAML. Start writing immediately.
+The VERY FIRST LINE must be:
+PIN_DESC: [one punchy sentence, max 20 words, Pinterest stop-scroll hook]
+
+Then the article body immediately after."""
+
+def review_and_rewrite(title: str, keyword: str, content: str, api_key: str) -> tuple:
+    """
+    Returns (final_content, passed, flags)
+    Attempts up to MAX_REVIEW_ATTEMPTS rewrites before giving up.
+    Cloud migration: swap REVIEWER_MODEL and this function becomes a Cloud Function.
+    """
+    if not REVIEWER_ENABLED:
+        return content, True, []
+
+    for attempt in range(1, MAX_REVIEW_ATTEMPTS + 1):
+        log(f"  REVIEW attempt {attempt}/{MAX_REVIEW_ATTEMPTS}")
+        review_prompt = make_review_prompt(title, keyword, content)
+        payload = json.dumps({
+            "model": REVIEWER_MODEL,
+            "messages": [{"role": "user", "content": review_prompt}],
+            "max_tokens": 1024,
+            "temperature": 0.2,
+        }).encode()
+        headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
+        try:
+            req = urllib.request.Request(GEMINI_URL, data=payload, headers=headers, method="POST")
+            with urllib.request.urlopen(req, timeout=60) as resp:
+                data = json.loads(resp.read())
+                raw = data["choices"][0]["message"]["content"].strip()
+                # Strip markdown fences if present
+                raw = re.sub(r'^```json\s*', '', raw)
+                raw = re.sub(r'\s*```$', '', raw)
+                scorecard = json.loads(raw)
+        except Exception as e:
+            log(f"  WARN: review call failed: {e} -- skipping review")
+            return content, True, []
+
+        passed  = scorecard.get("pass", False)
+        flags   = scorecard.get("flags", [])
+        scores  = scorecard.get("scores", {})
+        cliches = scores.get("ai_cliches_found", [])
+        log(f"  REVIEW {'PASS' if passed else 'FAIL'} | human_voice={scores.get('human_voice')} warmth={scores.get('warmth')} readability={scores.get('readability')}")
+        if flags:
+            log(f"  FLAGS: {'; '.join(flags)}")
+        if cliches:
+            log(f"  CLICHES: {', '.join(cliches)}")
+
+        if passed:
+            log(f"  REVIEW PASS -- proceeding")
+            return content, True, []
+
+        instructions = scorecard.get("rewrite_instructions", "")
+        if attempt < MAX_REVIEW_ATTEMPTS and instructions:
+            log(f"  REWRITING based on editor feedback...")
+            time.sleep(RPM_SLEEP)
+            rewrite_prompt = make_rewrite_prompt(title, keyword, content, instructions)
+            try:
+                content = call_gemini(rewrite_prompt, api_key)
+                # Re-extract PIN_DESC if present
+                if content.startswith('PIN_DESC:'):
+                    _, _, content = content.partition('\n')
+            except Exception as e:
+                log(f"  WARN: rewrite call failed: {e}")
+                return content, False, flags
+        else:
+            log(f"  REVIEW FAILED after {attempt} attempt(s) -- will create GitHub issue")
+            return content, False, flags
+
+    return content, False, []
+
+def create_github_issue(title: str, slug: str, flags: list) -> None:
+    """Create a GitHub issue assigned to GITHUB_ASSIGNEE for manual review."""
+    env = {**os.environ, "PATH": "/home/derek/bin:/usr/local/bin:/usr/bin:/bin", "GIT_TERMINAL_PROMPT": "0"}
+    flag_text = "\n".join(f"- {f}" for f in flags) if flags else "- Review failed quality threshold after rewrite attempt"
+    body = (
+        f"## Article Quality Review Failed\n\n"
+        f"**Article:** {title}\n"
+        f"**Slug:** `{slug}`\n"
+        f"**Date:** {datetime.date.today().isoformat()}\n\n"
+        f"### Flags\n{flag_text}\n\n"
+        f"### Action Required\n"
+        f"1. Review the generated `.md` file in `_posts/`\n"
+        f"2. Edit manually or re-run the generator for this slug\n"
+        f"3. Close this issue once published\n"
+    )
+    cmd = [
+        "gh", "issue", "create",
+        "--repo", GITHUB_REPO,
+        "--title", f"[Review Required] {title}",
+        "--body", body,
+        "--assignee", GITHUB_ASSIGNEE,
+        "--label", "content-review",
+    ]
+    r = subprocess.run(cmd, env=env, capture_output=True, text=True)
+    if r.returncode == 0:
+        log(f"  GITHUB ISSUE created: {r.stdout.strip()}")
+    else:
+        # Label may not exist yet -- retry without label
+        cmd_nolabel = [c for c in cmd if c != "--label" and c != "content-review"]
+        r2 = subprocess.run(cmd_nolabel, env=env, capture_output=True, text=True)
+        if r2.returncode == 0:
+            log(f"  GITHUB ISSUE created (no label): {r2.stdout.strip()}")
+        else:
+            log(f"  WARN: GitHub issue creation failed: {r2.stderr[:120]}")
 
 def append_to_sheet(title, article_url, description, image_url, species):
     """Append new article row to the correct Pinterest Queue Google Sheet."""
@@ -322,7 +481,7 @@ def main() -> None:
         POSTS_DIR.mkdir(parents=True, exist_ok=True)
         today = datetime.date.today().isoformat()
         generated = skipped = failed = 0
-        log(f"START v13 -- {len(TOPICS)} articles -- model={MODEL}")
+        log(f"START v14 -- {len(TOPICS)} articles -- model={MODEL} reviewer={'ON' if REVIEWER_ENABLED else 'OFF'}")
 
         for i, (slug, title, keyword, fmt) in enumerate(TOPICS, 1):
             fname = f"{today}-{slugify(slug)}.md"
@@ -355,6 +514,15 @@ def main() -> None:
                     log(f"  PIN_DESC: {pin_desc[:60]}")
                 if len(content) < 2000:
                     log(f"  WARN: only {len(content)} chars -- may be truncated")
+
+                # Review + rewrite loop
+                content, review_passed, review_flags = review_and_rewrite(title, keyword, content, gemini_key)
+                if not review_passed:
+                    create_github_issue(title, slug, review_flags)
+                    log(f"  SKIP {slug} -- quality check failed, GitHub issue created")
+                    failed += 1
+                    continue
+
                 affiliate_url = product.get("url", "")
                 fm = front_matter(title, keyword, affiliate_url).replace(
                     f'description: "{title} - expert reviews and buying guide."',
