@@ -6,6 +6,7 @@ then moves processed files to _pin_queue/sent/.
 Run ONLY after GitHub Pages build is confirmed live (called by autopublish.sh).
 """
 
+import argparse
 import json
 import os
 import sys
@@ -31,6 +32,11 @@ def load_env():
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--slugs', default='', help='Comma-separated slugs to process (empty = all queued)')
+    args = parser.parse_args()
+    slug_filter = set(s.strip() for s in args.slugs.split(',') if s.strip())
+
     load_env()
 
     try:
@@ -51,6 +57,9 @@ def main():
     sent_dir.mkdir(exist_ok=True)
 
     queue_files = sorted(queue_dir.glob('*.json'))
+    if slug_filter:
+        queue_files = [f for f in queue_files if f.stem in slug_filter]
+        log(f'Slug filter active — processing {len(queue_files)} file(s): {slug_filter}')
     if not queue_files:
         log('No queued pins found — nothing to do')
         return
@@ -82,6 +91,11 @@ def main():
 
     for qf in queue_files:
         try:
+            # Dedup guard — skip if already sent in a previous run
+            if (sent_dir / qf.name).exists():
+                log(f'  SKIP (already sent): {qf.name}')
+                continue
+
             data        = json.loads(qf.read_text())
             title       = data['title']
             article_url = data['article_url']
