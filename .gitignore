@@ -29,3 +29,4 @@ commit_cleanup.sh
 feed-cats.xml
 feed-dogs.xml
 happypet_cron.sh
+_pin_queue/

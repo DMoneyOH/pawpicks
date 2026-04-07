@@ -79,6 +79,16 @@ def build_url(slug: str, utm: bool = False) -> str:
         return base + "?utm_source=pinterest&utm_medium=social&utm_campaign=pin"
     return base
 
+def build_pin_image_url(slug: str) -> str:
+    """
+    Always append ?v={timestamp_date} to pin image URLs to bust Pinterest's CDN cache.
+    Pinterest caches image URLs aggressively — a versioned URL forces a fresh fetch
+    on every new pin, preventing blank image pins.
+    """
+    import datetime
+    version = datetime.date.today().strftime("%Y%m%d")
+    return f"{SITE}/assets/images/pins/{slug}.jpg?v={version}"
+
 # Topic definition: slug, title, keyword, article format
 TOPICS = [
     ("best-dog-collars-small-breeds",    "Best Dog Collars for Small Breeds",          "dog collars small breeds",     "roundup"),
@@ -309,6 +319,8 @@ SLUG_TO_TOPICAL_SHEET = {
     "best-dog-toys-aggressive-chewers": "HAPPYPET_SHEET_ID_TOYS",
     "best-no-pull-dog-harness":         "HAPPYPET_SHEET_ID_TOYS",
     "best-puppy-training-pads":         "HAPPYPET_SHEET_ID_HOME",
+    "best-dog-beds-large-breeds":       "HAPPYPET_SHEET_ID_HOME",
+    "best-cat-carrier-travel":          "HAPPYPET_SHEET_ID_HOME",
     "best-automatic-cat-feeder":        "HAPPYPET_SHEET_ID_HOME",
     "best-cat-scratching-posts":        "HAPPYPET_SHEET_ID_TOYS",
     "best-cat-litter-odor-control":     "HAPPYPET_SHEET_ID_HOME",
@@ -342,7 +354,8 @@ def append_to_sheet(title, article_url, description, image_url, species, slug=""
         scopes  = ['https://www.googleapis.com/auth/spreadsheets']
         creds   = GCredentials.from_service_account_file(str(key_file), scopes=scopes)
         gc      = gspread.authorize(creds)
-        row     = [title, article_url, image_url, description, 'NO']
+        pin_image_url = build_pin_image_url(slug) if slug else image_url
+        row     = [title, article_url, pin_image_url, description, 'NO']
         targets = []
         # Board 1 — species
         if species in ('dog', 'both') and dog_id:
@@ -617,13 +630,25 @@ def main() -> None:
                     except Exception as pe:
                         log(f"  WARN: pin generation failed: {pe}")
 
-                # 2. Append to sheet with branded pin URL in Column D
-                append_to_sheet(title, article_url, fm_data.get('description',''), pin_url, species, slug=slug)
+                # 2. Stage pin data for publish step (sheets appended AFTER article is live)
+                import json as _json
+                pin_queue_dir = REPO_DIR / '_pin_queue'
+                pin_queue_dir.mkdir(exist_ok=True)
+                pin_data = {
+                    'title':       title,
+                    'article_url': article_url,
+                    'description': fm_data.get('description', ''),
+                    'image_url':   pin_url,
+                    'species':     species,
+                    'slug':        slug_only,
+                }
+                queue_file = pin_queue_dir / f'{slug_only}.json'
+                queue_file.write_text(_json.dumps(pin_data, indent=2))
+                log(f'  QUEUE: staged pin data → {queue_file.name}')
 
-                # 3. Push article + pin image together
+                # 3. Track generation (git push handled by autopublish.sh)
                 generated += 1
                 used_slugs.add(slug)
-                git_push(1)
             except Exception as exc:
                 log(f"  FAIL: {exc}"); failed += 1
 
