@@ -82,9 +82,9 @@ permalink: /search/
       if (!doc) return false;
       // Species filter
       if (speciesFilter && doc.species !== speciesFilter && doc.species !== 'both' && doc.species) return false;
-      // Require at least one query term to appear in title or tags
+      // Require ALL query terms (3+ chars) to appear in title or tags — not just one
       var titleTags = ((doc.title || '') + ' ' + (doc.tags || '')).toLowerCase();
-      return queryTerms.length === 0 || queryTerms.some(function(t){ return titleTags.indexOf(t) > -1; });
+      return queryTerms.length === 0 || queryTerms.every(function(t){ return titleTags.indexOf(t) > -1; });
     }).slice(0, 6);
 
     if (results.length === 0) {
