@@ -6,6 +6,8 @@ categories: [cat-food]
 species: cat
 tags: [grain free cat food]
 description: "Is your cat scratching? Find the best grain-free cat food for a happy, healthy feline!"
+image: "https://images-na.ssl-images-amazon.com/images/P/B002UT92EY.01.LZZZZZZZ.jpg"
+affiliate_url: "https://amzn.to/4ctlhMN"
 ---
 
 

@@ -6,6 +6,8 @@ categories: [cat-toys]
 species: cat
 tags: [interactive cat toys]
 description: "Bored cat? Destructive behavior? Discover the best interactive cat toys to keep your feline friend happy and engaged!"
+image: "https://images-na.ssl-images-amazon.com/images/P/B00DT2WL26.01.LZZZZZZZ.jpg"
+affiliate_url: "https://amzn.to/4sZKrtw"
 ---
 
 

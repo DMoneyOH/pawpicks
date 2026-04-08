@@ -6,6 +6,8 @@ categories: [dog-crates]
 species: dog
 tags: [dog crate]
 description: "Find the perfect dog crate for your dog, no matter their size, with our budget-friendly top picks!"
+image: "https://images-na.ssl-images-amazon.com/images/P/B01DLS2EX8.01.LZZZZZZZ.jpg"
+affiliate_url: "https://amzn.to/4vfkWWC"
 ---
 
 

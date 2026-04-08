@@ -6,6 +6,8 @@ categories: [dog-food]
 species: dog
 tags: [senior dog food]
 description: "Is your senior dog slowing down? Find the best senior dog food to keep them happy and healthy!"
+image: "https://images-na.ssl-images-amazon.com/images/P/B009B87TKG.01.LZZZZZZZ.jpg"
+affiliate_url: "https://amzn.to/4bWheK2"
 ---
 
 

@@ -19,7 +19,10 @@ MAX_RETRIES    = 3
 BANNED_CLICHES = [
     "delve", "it's worth noting", "in conclusion", "look no further",
     "game-changer", "comprehensive guide", "navigate",
+    "paw-some", "put our paws", "tail wagging", "tail-wagging",
+    "furry family member", "fur baby", "fur babies", "pet parent",
 ]
+# Matches generate_posts.py BANNED_PHRASE_MAP (review_only uses detect-only, not replace)
 EM_DASH        = "\u2014"
 AFFILIATE_PAT  = re.compile(r"amzn\.to/\S+")
 DISCLOSURE_PAT = re.compile(r"(affiliate|commission|earn|sponsored)", re.IGNORECASE)

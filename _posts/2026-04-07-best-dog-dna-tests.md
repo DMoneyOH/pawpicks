@@ -6,6 +6,8 @@ categories: [dog-health]
 species: dog
 tags: [dog dna test kit]
 description: "Uncover your dog's true heritage and health risks with our top-rated dog DNA test kits!"
+image: "https://m.media-amazon.com/images/I/61MPOYxs87L._AC_SL1500_.jpg"
+affiliate_url: "https://amzn.to/4sUi3sy"
 ---
 
 

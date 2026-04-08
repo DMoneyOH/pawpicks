@@ -7,6 +7,7 @@ species: dog
 tags: [dog grooming tools]
 description: "Tired of pet hair tumbleweeds? Discover the best dog grooming tools for a happier, healthier pup!"
 affiliate_url: "https://amzn.to/4toeb2Q"
+image: "https://images-na.ssl-images-amazon.com/images/P/B07MZDTG76.01.LZZZZZZZ.jpg"
 ---
 
 # Best Dog Grooming Tools for Every Coat Type

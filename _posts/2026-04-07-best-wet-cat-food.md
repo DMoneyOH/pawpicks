@@ -6,6 +6,8 @@ categories: [cat-food]
 species: cat
 tags: [wet cat food]
 description: "Tired of picky eaters? Discover the best wet cat food your feline friend will actually devour, without breaking the bank!"
+image: "https://images-na.ssl-images-amazon.com/images/P/B072DTFZHL.01.LZZZZZZZ.jpg"
+affiliate_url: "https://amzn.to/4ecMB4e"
 ---
 
 

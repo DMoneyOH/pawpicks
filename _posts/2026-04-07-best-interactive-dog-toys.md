@@ -7,6 +7,7 @@ species: dog
 tags: [interactive dog toys]
 description: "Keep your dog entertained and engaged! We found the best interactive dog toys for every pup and budget."
 affiliate_url: "https://amzn.to/4t2GNiG"
+image: "https://images-na.ssl-images-amazon.com/images/P/B000F4AVPA.01.LZZZZZZZ.jpg"
 ---
 
 # Best Interactive Dog Toys to Keep Your Pup Busy

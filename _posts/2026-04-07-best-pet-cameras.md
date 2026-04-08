@@ -6,6 +6,8 @@ categories: [pet-tech]
 species: both
 tags: [pet camera treat dispenser]
 description: "Keep an eye on your best friend and even toss them a treat with these top-rated pet cameras!"
+image: "https://images-na.ssl-images-amazon.com/images/P/B0866S3D82.01.LZZZZZZZ.jpg"
+affiliate_url: "https://amzn.to/4cpluk9"
 ---
 
 
