@@ -70,7 +70,8 @@ def count_unpublished() -> int:
 
 def send_queue_alert(unpublished_count: int) -> None:
     """Send email alert when unpublished queue hits threshold."""
-    smtp_user = os.environ.get('GMAIL_SMTP_USER', ALERT_FROM)
+    smtp_user = os.environ.get("GMAIL_SMTP_USER", ALERT_FROM)
+    smtp_login = os.environ.get("GMAIL_ACCOUNT", smtp_user)
     smtp_pass = os.environ.get('GMAIL_APP_PASSWORD', '')
     if not smtp_pass:
         log('  ALERT: GMAIL_APP_PASSWORD not set -- skipping email alert')
@@ -103,7 +104,7 @@ def send_queue_alert(unpublished_count: int) -> None:
         msg['To']      = ALERT_TO
         with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as s:
             s.starttls()
-            s.login(smtp_user, smtp_pass)
+            s.login(smtp_login, smtp_pass)
             s.sendmail(smtp_user, [ALERT_TO], msg.as_string())
         log(f'  ALERT EMAIL sent to {ALERT_TO}: {subject}')
     except Exception as e:
