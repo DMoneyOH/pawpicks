@@ -73,15 +73,19 @@ permalink: /search/
     if (!query || query.trim().length < 2) { status.textContent = ''; return; }
 
     var speciesFilter = detectSpecies(query);
-    var raw = idx ? idx.search(query + '~1') : [];
+    var raw = idx ? idx.search(query) : [];
 
-    // Apply species pre-filter
+    // Apply species pre-filter then require title/tag relevance, cap at 6
+    var queryTerms = query.toLowerCase().split(/\s+/).filter(function(w){ return w.length > 2; });
     var results = raw.filter(function(r){
-      if (!speciesFilter) return true;
       var doc = docs.find(function(d){ return d.id === parseInt(r.ref); });
       if (!doc) return false;
-      return doc.species === speciesFilter || doc.species === 'both' || !doc.species;
-    });
+      // Species filter
+      if (speciesFilter && doc.species !== speciesFilter && doc.species !== 'both' && doc.species) return false;
+      // Require at least one query term to appear in title or tags
+      var titleTags = ((doc.title || '') + ' ' + (doc.tags || '')).toLowerCase();
+      return queryTerms.length === 0 || queryTerms.some(function(t){ return titleTags.indexOf(t) > -1; });
+    }).slice(0, 6);
 
     if (results.length === 0) {
       status.textContent = 'No results for "' + query + '". Try a different term.';
