@@ -26,8 +26,9 @@ SMTP_HOST         = 'smtp.gmail.com'
 SMTP_PORT         = 587
 
 
-def log(msg):
-    print(f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] [PINS] {msg}', flush=True)
+def log(msg: str, level: str = 'INFO') -> None:
+    line = f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} [PUBLISHER] [{level}]  {msg}"
+    print(line, flush=True)
 
 
 def load_env():
@@ -70,11 +71,11 @@ def count_unpublished() -> int:
 
 def send_queue_alert(unpublished_count: int) -> None:
     """Send email alert when unpublished queue hits threshold."""
-    smtp_user = os.environ.get("GMAIL_SMTP_USER", ALERT_FROM)
-    smtp_login = os.environ.get("GMAIL_ACCOUNT", smtp_user)
-    smtp_pass = os.environ.get('GMAIL_APP_PASSWORD', '')
+    smtp_user  = os.environ.get('GMAIL_SMTP_USER', ALERT_FROM)
+    smtp_login = os.environ.get('GMAIL_ACCOUNT', smtp_user)
+    smtp_pass  = os.environ.get('GMAIL_APP_PASSWORD', '')
     if not smtp_pass:
-        log('  ALERT: GMAIL_APP_PASSWORD not set -- skipping email alert')
+        log('GMAIL_APP_PASSWORD not set -- skipping email alert', 'WARN')
         return
     subject = f'[HappyPet] Queue low: only {unpublished_count} unpublished articles remaining'
     body = (
@@ -106,9 +107,9 @@ def send_queue_alert(unpublished_count: int) -> None:
             s.starttls()
             s.login(smtp_login, smtp_pass)
             s.sendmail(smtp_user, [ALERT_TO], msg.as_string())
-        log(f'  ALERT EMAIL sent to {ALERT_TO}: {subject}')
+        log(f'ALERT EMAIL sent to {ALERT_TO}')
     except Exception as e:
-        log(f'  ALERT EMAIL failed: {e}')
+        log(f'ALERT EMAIL failed: {e}', 'ERROR')
 
 
 def main():
@@ -123,12 +124,12 @@ def main():
         import gspread
         from google.oauth2.service_account import Credentials
     except ImportError:
-        log('ERROR: gspread not installed. Run: pip install gspread google-auth --break-system-packages')
+        log('gspread not installed. Run: pip install gspread google-auth --break-system-packages', 'ERROR')
         sys.exit(1)
 
     key_file = REPO_DIR / 'happypet-sheets-key.json'
     if not key_file.exists():
-        log('ERROR: happypet-sheets-key.json not found')
+        log('happypet-sheets-key.json not found', 'ERROR')
         sys.exit(1)
 
     queue_dir = REPO_DIR / '_pin_queue'
@@ -161,15 +162,16 @@ def main():
     if map_path.exists():
         slug_topical_map = json.loads(map_path.read_text())
 
-    today     = datetime.now().strftime('%Y-%m-%d')
-    processed = 0
-    failed    = 0
+    today      = datetime.now().strftime('%Y-%m-%d')
+    processed  = 0
+    failed     = 0
     alert_sent = False
+
 
     for qf in queue_files:
         try:
             if (sent_dir / qf.name).exists():
-                log(f'  SKIP (already sent): {qf.name}')
+                log(f'SKIP (already sent): {qf.name}')
                 continue
 
             data        = json.loads(qf.read_text())
@@ -197,26 +199,24 @@ def main():
             for label, sheet_id in targets:
                 sh = gc.open_by_key(sheet_id)
                 sh.get_worksheet(0).append_row(row)
-                log(f'  SHEET: appended to {label} -- {title}')
+                log(f'SHEET: appended to {label} -- {title}')
 
             shutil.move(str(qf), str(sent_dir / qf.name))
-            log(f'  SENT: {qf.name} -> _pin_queue/sent/')
+            log(f'SENT: {qf.name} -> _pin_queue/sent/')
 
-            # Retire from products.json -- rolling queue model
             retire_from_products(slug)
 
-            # Check unpublished queue depth and alert if low
             if not alert_sent:
                 unpub = count_unpublished()
                 if unpub <= QUEUE_LOW_THRESHOLD:
-                    log(f'QUEUE LOW: only {unpub} unpublished article(s) remain in products.json -- add new topics!')
+                    log(f'QUEUE LOW: {unpub} unpublished article(s) remain -- add new topics!', 'WARN')
                     send_queue_alert(unpub)
-                    alert_sent = True  # one alert per autopublish run
+                    alert_sent = True
 
             processed += 1
 
         except Exception as e:
-            log(f'  FAIL: {qf.name} -- {e}')
+            log(f'FAIL: {qf.name} -- {e}', 'ERROR')
             failed += 1
 
     log(f'DONE -- {processed} pinned, {failed} failed')

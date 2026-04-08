@@ -86,6 +86,16 @@ def log(msg: str, level: str = "INFO") -> None:
     print(line, flush=True)
 
 
+def log_reviewer(msg: str, level: str = "INFO") -> None:
+    line = f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} [REVIEWER]  [{level}]  {msg}"
+    print(line, flush=True)
+
+
+def log_pin(msg: str, level: str = "INFO") -> None:
+    line = f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} [PINGEN]    [{level}]  {msg}"
+    print(line, flush=True)
+
+
 def slugify(s: str) -> str:
     return re.sub(r"[^a-z0-9\-]", "", s.lower().replace(" ", "-"))
 
@@ -304,8 +314,8 @@ def review_and_rewrite(title: str, keyword: str, content: str, api_key: str) -> 
     if not REVIEWER_ENABLED:
         return content, True, []
     for attempt in range(1, MAX_REVIEW_ATTEMPTS + 1):
-        log(f"  REVIEW attempt {attempt}/{MAX_REVIEW_ATTEMPTS}")
-        log(f"  REVIEW pre-sleep {REVIEW_PRE_SLEEP}s...")
+        log_reviewer(f"  REVIEW attempt {attempt}/{MAX_REVIEW_ATTEMPTS}")
+        log_reviewer(f"  REVIEW pre-sleep {REVIEW_PRE_SLEEP}s...")
         time.sleep(REVIEW_PRE_SLEEP)
         try:
             payload = json.dumps({
@@ -326,45 +336,45 @@ def review_and_rewrite(title: str, keyword: str, content: str, api_key: str) -> 
                 except urllib.error.HTTPError as exc:
                     if exc.code == 429:
                         wait = 30 * (2 ** r_attempt)
-                        log(f"  REVIEW 429 attempt {r_attempt}/{MAX_RETRIES} -- wait {wait}s", "WARN")
+                        log_reviewer(f"  REVIEW 429 attempt {r_attempt}/{MAX_RETRIES} -- wait {wait}s", "WARN")
                         time.sleep(wait)
                     else:
                         raise
             if raw is None:
-                log("  review call failed after retries -- skipping review", "WARN")
+                log_reviewer("  review call failed after retries -- skipping review", "WARN")
                 return content, True, []
             raw = re.sub(r"```json|```", "", raw).strip()
             m = re.search(r"\{.*\}", raw, re.DOTALL)
             raw = m.group(0) if m else raw
             scorecard = json.loads(raw)
         except json.JSONDecodeError as e:
-            log(f"  review JSON parse failed: {e} -- skipping review", "WARN")
+            log_reviewer(f"  review JSON parse failed: {e} -- skipping review", "WARN")
             return content, True, []
         except Exception as e:
-            log(f"  review call failed: {e} -- skipping review", "WARN")
+            log_reviewer(f"  review call failed: {e} -- skipping review", "WARN")
             return content, True, []
         passed = scorecard.get("pass", False)
         flags  = scorecard.get("flags", [])
         scores = scorecard.get("scores", {})
-        log(f"  REVIEW {'PASS' if passed else 'FAIL'} | human_voice={scores.get('human_voice')} "
+        log_reviewer(f"  REVIEW {'PASS' if passed else 'FAIL'} | human_voice={scores.get('human_voice')} "
             f"warmth={scores.get('warmth')} readability={scores.get('readability')}")
         if flags:
-            log(f"  FLAGS: {'; '.join(flags)}")
+            log_reviewer(f"  FLAGS: {'; '.join(flags)}")
         if passed:
             return content, True, []
         instructions = scorecard.get("rewrite_instructions", "")
         if attempt < MAX_REVIEW_ATTEMPTS and instructions:
-            log("  REWRITING based on editor feedback...")
+            log_reviewer("  REWRITING based on editor feedback...")
             time.sleep(RPM_SLEEP)
             try:
                 content = call_gemini(make_rewrite_prompt(title, keyword, content, instructions), api_key)
                 if content.startswith("PIN_DESC:"):
                     _, _, content = content.partition("\n")
             except Exception as e:
-                log(f"  WARN: rewrite call failed: {e}")
+                log_reviewer(f"  WARN: rewrite call failed: {e}")
                 return content, False, flags
         else:
-            log(f"  REVIEW FAILED after {attempt} attempt(s) -- creating GitHub issue", "WARN")
+            log_reviewer(f"  REVIEW FAILED after {attempt} attempt(s) -- creating GitHub issue", "WARN")
             return content, False, flags
     return content, False, []
 
@@ -383,7 +393,7 @@ def create_github_issue(title: str, slug: str, flags: list) -> None:
     cmd = ["gh", "issue", "create", "--repo", GITHUB_REPO,
            "--title", f"[Review Required] {title}", "--body", body, "--assignee", GITHUB_ASSIGNEE]
     r = subprocess.run(cmd, env=env, capture_output=True, text=True)
-    log(f"  GITHUB ISSUE: {r.stdout.strip() if r.returncode == 0 else r.stderr[:80]}")
+    log_reviewer(f"  GITHUB ISSUE: {r.stdout.strip() if r.returncode == 0 else r.stderr[:80]}")
 
 
 def front_matter(title: str, keyword: str, affiliate_url: str, slug: str,
@@ -510,7 +520,7 @@ def main() -> None:
                 if content.startswith("PIN_DESC:"):
                     first_line, _, content = content.partition("\n")
                     pin_desc = first_line.replace("PIN_DESC:", "").strip()
-                    log(f"  PIN_DESC: {pin_desc[:60]}")
+                    log_pin(f"  PIN_DESC: {pin_desc[:60]}")
                 if len(content) < 2000:
                     log(f"  only {len(content)} chars -- may be truncated", "WARN")
 
@@ -533,9 +543,9 @@ def main() -> None:
                 if PIN_GEN_AVAILABLE:
                     try:
                         pin_url = make_pin_for_post(title, pin_desc, pin_url, category, slug, generated)
-                        log(f"  PIN: {pin_url}")
+                        log_pin(f"  PIN: {pin_url}")
                     except Exception as pe:
-                        log(f"  pin generation failed: {pe}", "WARN")
+                        log_pin(f"  pin generation failed: {pe}", "WARN")
 
                 # Stage pin data for autopublish.sh -> push_pins_to_sheets.py
                 pin_queue_dir = REPO_DIR / "_pin_queue"
