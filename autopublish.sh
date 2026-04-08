@@ -4,9 +4,10 @@
 # Cadence: Monday = 2 articles, Thursday = 1 article
 set -Eeuo pipefail
 
-REPO_DIR="/home/derek/projects/pawpicks"
+# GHA-compatible paths — fall back to local WSL paths when not running in Actions
+REPO_DIR="${GITHUB_WORKSPACE:-/home/derek/projects/pawpicks}"
 PATH="/home/derek/.local/bin:/home/derek/bin:/usr/local/bin:/usr/bin:/bin"
-GH="/home/derek/bin/gh"
+GH="${GH_CLI:-$(command -v gh || echo /home/derek/bin/gh)}"
 MAX_WAIT=600
 POLL_INTERVAL=30
 LOG_FILE="${REPO_DIR}/LOGS/HappyPet_$(date '+%Y-%m-%d').log"

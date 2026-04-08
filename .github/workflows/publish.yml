@@ -1,0 +1,181 @@
+name: Stage 2 — Publish Articles
+
+on:
+  schedule:
+    # Mon + Thu 7:00 AM ET = 12:00 UTC (EDT, Apr-Nov)
+    - cron: '0 12 * * 1,4'
+  workflow_dispatch:
+    inputs:
+      force_cap:
+        description: 'Override post cap (1 or 2)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure git identity
+        run: |
+          git config user.name  "HappyPet Bot"
+          git config user.email "hello@happypetproductreviews.com"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Python dependencies
+        run: |
+          pip install --quiet \
+            gspread==6.2.1 \
+            google-auth==2.49.1 \
+            python-dotenv==1.2.2
+
+      - name: Write GCP service account key
+        run: |
+          echo "${{ secrets.GCP_SA_KEY_B64 }}" | base64 -d > happypet-sheets-key.json
+
+      - name: Determine post cap
+        id: cap
+        run: |
+          OVERRIDE="${{ github.event.inputs.force_cap }}"
+          if [ -n "$OVERRIDE" ]; then
+            echo "cap=${OVERRIDE}" >> "$GITHUB_OUTPUT"
+            echo "Post cap (override): ${OVERRIDE}"
+          else
+            DOW=$(date '+%u')
+            if [ "$DOW" = "1" ]; then
+              echo "cap=2" >> "$GITHUB_OUTPUT"
+              echo "Monday run — cap 2"
+            else
+              echo "cap=1" >> "$GITHUB_OUTPUT"
+              echo "Thursday run — cap 1"
+            fi
+          fi
+
+      - name: Find and date unpublished posts
+        id: stage
+        run: |
+          CAP="${{ steps.cap.outputs.cap }}"
+          TODAY=$(date '+%Y-%m-%d')
+          mapfile -t ALL_NEW < <(git ls-files --others --exclude-standard _posts/ | sort)
+          TOTAL=${#ALL_NEW[@]}
+          echo "Found ${TOTAL} untracked post(s)"
+          if [ "$TOTAL" -eq 0 ]; then
+            echo "nothing_to_publish=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "nothing_to_publish=false" >> "$GITHUB_OUTPUT"
+          SELECTED=("${ALL_NEW[@]:0:$CAP}")
+          SLUGS=()
+          for p in "${SELECTED[@]}"; do
+            fname=$(basename "$p" .md)
+            slug=$(echo "$fname" | cut -d'-' -f4-)
+            SLUGS+=("$slug")
+            new_path="_posts/${TODAY}-${slug}.md"
+            [ "$p" != "$new_path" ] && mv "$p" "$new_path" && echo "  DATED: $p -> $new_path"
+            sed -i "s/^date: .*/date: ${TODAY}/" "$new_path"
+            git add "$new_path"
+            pin_img="assets/images/pins/${slug}.jpg"
+            [ -f "$pin_img" ] && git add "$pin_img" && echo "  STAGED pin: $pin_img"
+          done
+          SLUGS_CSV=$(IFS=','; echo "${SLUGS[*]}")
+          echo "slugs=${SLUGS_CSV}" >> "$GITHUB_OUTPUT"
+          echo "publish_count=${#SELECTED[@]}" >> "$GITHUB_OUTPUT"
+          REMAINING=$(( TOTAL - ${#SELECTED[@]} ))
+          echo "remaining=${REMAINING}" >> "$GITHUB_OUTPUT"
+          echo "Staged ${#SELECTED[@]} post(s): ${SLUGS_CSV}"
+
+      - name: Commit and push
+        if: steps.stage.outputs.nothing_to_publish == 'false'
+        run: |
+          COUNT="${{ steps.stage.outputs.publish_count }}"
+          TODAY=$(date '+%Y-%m-%d')
+          git commit -m "auto: publish ${TODAY} [${COUNT} post(s)]"
+          git push origin main
+          echo "Push complete — waiting for Pages build..."
+
+      - name: Poll for Pages build success
+        if: steps.stage.outputs.nothing_to_publish == 'false'
+        id: build_poll
+        run: |
+          MAX_WAIT=600
+          POLL=30
+          ELAPSED=0
+          while [ $ELAPSED -lt $MAX_WAIT ]; do
+            sleep $POLL
+            ELAPSED=$(( ELAPSED + POLL ))
+            STATUS=$(gh run list \
+              --repo DMoneyOH/pawpicks \
+              --workflow deploy.yml \
+              --limit 1 \
+              --json status,conclusion \
+              --jq '.[0] | "\(.status)|\(.conclusion)"' 2>/dev/null || echo "error|error")
+            RUN_STATUS=$(echo "$STATUS"  | cut -d'|' -f1)
+            RUN_CONC=$(echo   "$STATUS"  | cut -d'|' -f2)
+            echo "  [${ELAPSED}s] status=${RUN_STATUS} conclusion=${RUN_CONC}"
+            if [ "$RUN_STATUS" = "completed" ] && [ "$RUN_CONC" = "success" ]; then
+              echo "build_ok=true" >> "$GITHUB_OUTPUT"
+              echo "Build confirmed live"
+              exit 0
+            fi
+            if [ "$RUN_STATUS" = "completed" ] && [ "$RUN_CONC" != "success" ]; then
+              echo "build_ok=false" >> "$GITHUB_OUTPUT"
+              echo "Build FAILED (conclusion=${RUN_CONC}) — aborting sheet append"
+              exit 1
+            fi
+          done
+          echo "build_ok=false" >> "$GITHUB_OUTPUT"
+          echo "Build did not complete within ${MAX_WAIT}s — aborting sheet append"
+          exit 1
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push pins to Google Sheets
+        if: steps.stage.outputs.nothing_to_publish == 'false' && steps.build_poll.outputs.build_ok == 'true'
+        env:
+          HAPPYPET_SHEET_ID_DOGS:   ${{ secrets.HAPPYPET_SHEET_ID_DOGS }}
+          HAPPYPET_SHEET_ID_CATS:   ${{ secrets.HAPPYPET_SHEET_ID_CATS }}
+          HAPPYPET_SHEET_ID_HOME:   ${{ secrets.HAPPYPET_SHEET_ID_HOME }}
+          HAPPYPET_SHEET_ID_FOOD:   ${{ secrets.HAPPYPET_SHEET_ID_FOOD }}
+          HAPPYPET_SHEET_ID_TOYS:   ${{ secrets.HAPPYPET_SHEET_ID_TOYS }}
+          HAPPYPET_SHEET_ID_HEALTH: ${{ secrets.HAPPYPET_SHEET_ID_HEALTH }}
+          GMAIL_SMTP_USER:          ${{ secrets.GMAIL_SMTP_USER }}
+          GMAIL_ACCOUNT:            ${{ secrets.GMAIL_ACCOUNT }}
+          GMAIL_APP_PASSWORD:       ${{ secrets.GMAIL_APP_PASSWORD }}
+        run: |
+          python3 push_pins_to_sheets.py --slugs "${{ steps.stage.outputs.slugs }}"
+
+      - name: Queue low — create GitHub issue
+        if: steps.stage.outputs.nothing_to_publish == 'false' && steps.build_poll.outputs.build_ok == 'true' && steps.stage.outputs.remaining <= '3'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          REMAINING="${{ steps.stage.outputs.remaining }}"
+          gh issue create \
+            --repo DMoneyOH/pawpicks \
+            --title "⚠️ Queue low: ${REMAINING} unpublished post(s) remaining" \
+            --body "$(printf 'autopublish queue alert (%s)\n\nOnly **%s** unpublished post(s) remain in \`_posts/\`.\n\n**Action needed:** Populate \`products.json\` and trigger Stage 1 before queue runs dry.\n\n_Auto-generated by publish.yml_' "$(date '+%Y-%m-%d')" "$REMAINING")" \
+            --assignee DMoneyOH
+
+      - name: Upload logs as artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: publish-logs-${{ github.run_id }}
+          path: LOGS/
+          if-no-files-found: ignore
+          retention-days: 14

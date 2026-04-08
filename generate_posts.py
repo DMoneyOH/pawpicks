@@ -508,7 +508,7 @@ def review_and_rewrite(title: str, keyword: str, content: str, api_key: str) -> 
 
 
 def create_github_issue(title: str, slug: str, flags: list) -> None:
-    env = {**os.environ, "PATH": "/home/derek/bin:/usr/local/bin:/usr/bin:/bin", "GIT_TERMINAL_PROMPT": "0"}
+    env = {**os.environ, "PATH": "/home/derek/bin:/usr/local/bin:/usr/bin:/bin", "GIT_TERMINAL_PROMPT": "0", "GH_TOKEN": os.environ.get("GITHUB_TOKEN", os.environ.get("GH_TOKEN", ""))}
     flag_text = "\n".join(f"- {f}" for f in flags) if flags else "- Review failed quality threshold"
     body = (
         f"## Article Quality Review Failed\n\n"

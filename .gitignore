@@ -32,4 +32,5 @@ Thumbs.db
 *.log
 autopublish.log
 LOGS/
+setup_gh_secrets.sh
 INFRA.md
