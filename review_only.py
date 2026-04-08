@@ -72,7 +72,8 @@ def find_article(slug: str) -> tuple:
     return fpath, title, keyword, content, raw
 
 # ── Rule-based pre-screen ────────────────────────────────────────────────────
-def pre_screen(content: str) -> dict:
+def pre_screen(content: str) -> tuple:
+    """Returns (results_dict, cleaned_content)."""
     results = {"hard_fails": [], "warnings": [], "info": {}}
 
     # Word count
@@ -102,13 +103,22 @@ def pre_screen(content: str) -> dict:
     if found_cliches:
         results["hard_fails"].append(f"Banned clichés detected: {found_cliches}")
 
+    # PIN_DESC in body — auto-strip silently. It's generator metadata only;
+    # by review time it's already been saved to _pin_queue/. Remove it so it
+    # never renders on the live site. Log the strip as info.
+    if re.search(r'^PIN_DESC:.*$', content, re.MULTILINE):
+        content = re.sub(r'^PIN_DESC:.*\n?', '', content, flags=re.MULTILINE).lstrip()
+        results["info"]["pin_desc_stripped"] = True
+    else:
+        results["info"]["pin_desc_stripped"] = False
+
     # Em dash warning
     em_count = content.count(EM_DASH)
     results["info"]["em_dash_count"] = em_count
     if em_count > 0:
         results["warnings"].append(f"Em dash found {em_count} time(s) — consider replacing with commas or restructuring")
 
-    return results
+    return results, content
 
 # ── Groq llama-3.3-70b-versatile reviewer ────────────────────────────────────
 def call_reviewer(title: str, keyword: str, content: str, api_key: str) -> dict:
@@ -221,8 +231,10 @@ def main():
 
     # ── BEFORE: Pre-screen ──────────────────────────────────────────────────
     banner("BEFORE — Rule-Based Pre-Screen (Python, zero API calls)")
-    ps = pre_screen(content)
+    ps, content = pre_screen(content)
 
+    if ps['info'].get('pin_desc_stripped'):
+        print("  ℹ PIN_DESC stripped from article body (generator metadata)")
     print(f"\n  Word count     : {ps['info']['word_count']}")
     print(f"  Affiliate links: {len(ps['info']['affiliate_links'])} found {ps['info']['affiliate_links'] or '— NONE'}")
     print(f"  Disclosure     : {'✓ found' if ps['info']['disclosure_found'] else '✗ MISSING'}")
@@ -253,7 +265,7 @@ def main():
         print("\n  Pre-screen passed. Calling Groq reviewer...")
         print("  (2s pre-sleep...)")
         time.sleep(2)
-        result = call_reviewer(title, keyword, content, api_key)
+        result = call_reviewer(title, keyword, content, api_key)  # content is PIN_DESC-stripped
 
         if "error" in result:
             print(f"\n  ERROR from reviewer: {result['error']}")
