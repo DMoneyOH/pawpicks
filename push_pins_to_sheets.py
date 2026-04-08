@@ -166,6 +166,14 @@ def main():
     if map_path.exists():
         slug_topical_map = json.loads(map_path.read_text())
 
+    # Load products.json as authoritative fallback for topical_sheet
+    products_map = {}
+    products_path = REPO_DIR / 'products.json'
+    if products_path.exists():
+        for entry in json.loads(products_path.read_text()):
+            if entry.get('topic') and entry.get('topical_sheet'):
+                products_map[entry['topic']] = entry['topical_sheet']
+
     today      = datetime.now().strftime('%Y-%m-%d')
     processed  = 0
     failed     = 0
@@ -194,7 +202,7 @@ def main():
             if species in ('cat', 'both') and cat_id:
                 targets.append(('Cats', cat_id))
 
-            topical_key = data.get('topical_sheet') or slug_topical_map.get(slug)
+            topical_key = data.get('topical_sheet') or slug_topical_map.get(slug) or products_map.get(slug)
             if topical_key:
                 topical_id = topical_ids.get(topical_key)
                 if topical_id:
