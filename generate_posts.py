@@ -35,7 +35,7 @@ except ImportError:
 
 REPO_DIR  = Path(__file__).parent.resolve()
 POSTS_DIR = REPO_DIR / "_posts"
-LOG_PATH  = Path("/tmp/pawpicks.log")       # unified log: generator + publisher + pins
+LOG_PATH  = Path(__file__).parent / "LOGS" / f"HappyPet_{datetime.date.today().isoformat()}.log"
 LOCK_PATH = Path("/tmp/pawpicks_gen.lock")
 
 MODEL            = "gemini-2.5-flash"

@@ -31,3 +31,4 @@ Thumbs.db
 # === Logs (runtime, not source) ===
 *.log
 autopublish.log
+LOGS/
