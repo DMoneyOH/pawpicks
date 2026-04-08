@@ -13,18 +13,18 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 load_dotenv(Path.home() / '.env')
-api_key = os.environ.get('GEMINI_API_KEY', '').strip()
-assert api_key, 'GEMINI_API_KEY not set'
+api_key = os.environ.get('GROQ_API_KEY', '').strip()
+assert api_key, 'GROQ_API_KEY not set -- check ~/.env'
 
 import generate_posts as gp
 gp.REVIEWER_ENABLED = True
 gp.MAX_REVIEW_ATTEMPTS = 2
-gp.REVIEW_PRE_SLEEP = 30
+gp.REVIEW_PRE_SLEEP = 2   # matches generate_posts.py (Groq free tier, no long sleep needed)
 
 REPO      = gp.REPO_DIR
 POSTS_DIR = gp.POSTS_DIR
 
-INTER_REVIEW_SLEEP = 60
+INTER_REVIEW_SLEEP = 0    # matches generate_posts.py (no inter-article sleep)
 
 
 # Load products for affiliate URLs
@@ -96,7 +96,7 @@ for i, slug in enumerate(SLUGS, 1):
         gp.create_github_issue(title, slug, flags)
         failed_list.append(slug)
 
-    if i < len(SLUGS):
+    if i < len(SLUGS) and INTER_REVIEW_SLEEP > 0:
         gp.log(f'  Sleeping {INTER_REVIEW_SLEEP}s before next...')
         time.sleep(INTER_REVIEW_SLEEP)
 
