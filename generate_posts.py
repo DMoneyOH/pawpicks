@@ -41,6 +41,7 @@ LOG_PATH.parent.mkdir(exist_ok=True)  # ensure LOGS/ exists
 
 MODEL            = "gemini-2.5-flash"
 GEMINI_URL       = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+VERTEX_URL       = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
 GROQ_URL         = "https://api.groq.com/openai/v1/chat/completions"
 REVIEWER_MODEL   = "llama-3.3-70b-versatile"
 REVIEWER_ENABLED = True
@@ -225,26 +226,33 @@ def validate_product(slug: str, product: dict) -> list:
 
 
 def call_gemini(prompt: str, api_key: str) -> str:
-    payload = json.dumps({
+    """Call Gemini with automatic failover between OpenAI-compatible and native endpoints."""
+    
+    # Try OpenAI-compatible endpoint first (generativelanguage.googleapis.com)
+    payload_openai = json.dumps({
         "model": MODEL,
         "messages": [{"role": "user", "content": prompt}],
         "max_tokens": 8192,
         "temperature": 0.75,
     }).encode()
-    headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
+    headers_openai = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
+    
     for attempt in range(1, MAX_RETRIES + 1):
         try:
-            req = urllib.request.Request(GEMINI_URL, data=payload, headers=headers, method="POST")
+            req = urllib.request.Request(GEMINI_URL, data=payload_openai, headers=headers_openai, method="POST")
             with urllib.request.urlopen(req, timeout=90) as resp:
                 data = json.loads(resp.read())
                 content = data["choices"][0]["message"]["content"]
                 finish  = data["choices"][0].get("finish_reason", "?")
                 tokens  = data.get("usage", {}).get("completion_tokens", "?")
-                log(f"  API ok: {len(content)} chars, {tokens} tokens, finish={finish}")
+                log(f"  API ok (OpenAI endpoint): {len(content)} chars, {tokens} tokens, finish={finish}")
                 return content
         except urllib.error.HTTPError as exc:
             body = exc.read().decode(errors="replace")
-            if exc.code in (429, 503, 502):
+            if exc.code == 503:
+                log(f"  OpenAI endpoint 503 on attempt {attempt}/{MAX_RETRIES} - trying Vertex fallback", "WARN")
+                break  # Switch to Vertex endpoint
+            elif exc.code in (429, 502):
                 wait = 30 * (2 ** attempt)
                 log(f"  {exc.code} attempt {attempt}/{MAX_RETRIES} -- wait {wait}s", "WARN")
                 time.sleep(wait)
@@ -253,8 +261,41 @@ def call_gemini(prompt: str, api_key: str) -> str:
         except urllib.error.URLError as exc:
             log(f"  Network error attempt {attempt}: {exc.reason}", "WARN")
             time.sleep(RPM_SLEEP * 2)
-    raise RuntimeError(f"Failed after {MAX_RETRIES} attempts")
-
+    
+    # Fallback to native Vertex endpoint if OpenAI endpoint failed with 503
+    log("  Switching to Vertex AI native endpoint", "INFO")
+    payload_vertex = json.dumps({
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {
+            "maxOutputTokens": 8192,
+            "temperature": 0.75,
+        }
+    }).encode()
+    headers_vertex = {"Content-Type": "application/json", "x-goog-api-key": api_key}
+    
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            req = urllib.request.Request(VERTEX_URL, data=payload_vertex, headers=headers_vertex, method="POST")
+            with urllib.request.urlopen(req, timeout=90) as resp:
+                data = json.loads(resp.read())
+                content = data["candidates"][0]["content"]["parts"][0]["text"]
+                finish  = data["candidates"][0].get("finishReason", "?")
+                tokens  = data.get("usageMetadata", {}).get("candidatesTokenCount", "?")
+                log(f"  API ok (Vertex endpoint): {len(content)} chars, {tokens} tokens, finish={finish}")
+                return content
+        except urllib.error.HTTPError as exc:
+            body = exc.read().decode(errors="replace")
+            if exc.code in (429, 503, 502):
+                wait = 30 * (2 ** attempt)
+                log(f"  Vertex {exc.code} attempt {attempt}/{MAX_RETRIES} -- wait {wait}s", "WARN")
+                time.sleep(wait)
+            else:
+                raise RuntimeError(f"HTTP {exc.code}: {body[:200]}")
+        except urllib.error.URLError as exc:
+            log(f"  Vertex network error attempt {attempt}: {exc.reason}", "WARN")
+            time.sleep(RPM_SLEEP * 2)
+    
+    raise RuntimeError(f"Failed after {MAX_RETRIES} attempts on both endpoints")
 
 def make_review_prompt(title: str, keyword: str, content: str) -> str:
     # Full article up to 15K chars — 70B handles full context; 15K safety ceiling.
