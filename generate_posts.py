@@ -40,6 +40,7 @@ LOCK_PATH = Path("/tmp/pawpicks_gen.lock")
 LOG_PATH.parent.mkdir(exist_ok=True)  # ensure LOGS/ exists
 
 MODEL            = "gemini-2.5-flash"
+GEMINI_URL       = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
 GROQ_URL         = "https://api.groq.com/openai/v1/chat/completions"
 REVIEWER_MODEL   = "llama-3.3-70b-versatile"
 REVIEWER_ENABLED = True
