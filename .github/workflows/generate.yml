@@ -8,7 +8,7 @@ on:
   workflow_dispatch: {}
 
 permissions:
-  contents: read
+  contents: write
   issues: write
 
 jobs:
@@ -21,6 +21,12 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure git identity
+        run: |
+          git config user.name  "HappyPet Bot"
+          git config user.email "hello@happypetproductreviews.com"
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -74,6 +80,19 @@ jobs:
           GMAIL_ACCOUNT: ${{ secrets.GMAIL_ACCOUNT }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
         run: python3 generate_posts.py
+
+      - name: Commit generated files
+        run: |
+          # Stage new posts, pin images, pin queue JSONs, updated products.json
+          git add _posts/ assets/images/pins/ _pin_queue/ products.json 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "Nothing generated — no commit needed"
+          else
+            COUNT=$(git diff --cached --name-only | grep '^_posts/' | wc -l)
+            git commit -m "auto: generate $(date '+%Y-%m-%d') [${COUNT} article(s) staged]"
+            git push origin main
+            echo "Committed and pushed ${COUNT} staged article(s)"
+          fi
 
       - name: Upload logs as artifact
         if: always()

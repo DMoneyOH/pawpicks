@@ -15,7 +15,7 @@ SESSION_STATE.md
 FUTURE_REFERENCE.md
 
 # === Pin Staging Queue (runtime, not source) ===
-_pin_queue/
+_pin_queue/sent/
 
 # === Jekyll Build Output ===
 _site/
