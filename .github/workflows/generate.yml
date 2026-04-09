@@ -5,12 +5,7 @@ on:
     # Mon + Thu 3:15 AM ET = 8:15 UTC (EDT, Apr-Nov)
     # Winter (EST): shifts to 8:15 UTC = 3:15 AM EST — same expression, no drift
     - cron: '15 8 * * 1,4'
-  workflow_dispatch:
-    inputs:
-      dry_run:
-        description: 'Dry run — generate but do not save files'
-        required: false
-        default: 'false'
+  workflow_dispatch: {}
 
 permissions:
   contents: read

@@ -101,31 +101,45 @@ jobs:
 
       - name: Commit and push
         if: steps.stage.outputs.nothing_to_publish == 'false'
+        id: push
         run: |
           COUNT="${{ steps.stage.outputs.publish_count }}"
           TODAY=$(date '+%Y-%m-%d')
           git commit -m "auto: publish ${TODAY} [${COUNT} post(s)]"
           git push origin main
           echo "Push complete — waiting for Pages build..."
+          # Capture the commit SHA so the poll can find the exact deploy run
+          SHA=$(git rev-parse HEAD)
+          echo "sha=${SHA}" >> "$GITHUB_OUTPUT"
+          echo "Pushed SHA: ${SHA}"
 
       - name: Poll for Pages build success
         if: steps.stage.outputs.nothing_to_publish == 'false'
         id: build_poll
         run: |
+          SHA="${{ steps.push.outputs.sha }}"
           MAX_WAIT=600
           POLL=30
           ELAPSED=0
+          # Wait briefly for GHA to register the new run before polling
+          sleep 15
           while [ $ELAPSED -lt $MAX_WAIT ]; do
             sleep $POLL
             ELAPSED=$(( ELAPSED + POLL ))
+            # Find the deploy run triggered by our specific commit SHA
             STATUS=$(gh run list \
               --repo DMoneyOH/pawpicks \
               --workflow deploy.yml \
-              --limit 1 \
-              --json status,conclusion \
-              --jq '.[0] | "\(.status)|\(.conclusion)"' 2>/dev/null || echo "error|error")
-            RUN_STATUS=$(echo "$STATUS"  | cut -d'|' -f1)
-            RUN_CONC=$(echo   "$STATUS"  | cut -d'|' -f2)
+              --limit 5 \
+              --json status,conclusion,headSha \
+              --jq ".[] | select(.headSha==\"${SHA}\") | \"\(.status)|\(.conclusion)\"" \
+              2>/dev/null | head -1 || echo "")
+            if [ -z "$STATUS" ]; then
+              echo "  [${ELAPSED}s] Run for SHA ${SHA} not found yet — waiting..."
+              continue
+            fi
+            RUN_STATUS=$(echo "$STATUS" | cut -d'|' -f1)
+            RUN_CONC=$(echo   "$STATUS" | cut -d'|' -f2)
             echo "  [${ELAPSED}s] status=${RUN_STATUS} conclusion=${RUN_CONC}"
             if [ "$RUN_STATUS" = "completed" ] && [ "$RUN_CONC" = "success" ]; then
               echo "build_ok=true" >> "$GITHUB_OUTPUT"
@@ -160,7 +174,7 @@ jobs:
           python3 push_pins_to_sheets.py --slugs "${{ steps.stage.outputs.slugs }}"
 
       - name: Queue low — create GitHub issue
-        if: steps.stage.outputs.nothing_to_publish == 'false' && steps.build_poll.outputs.build_ok == 'true' && steps.stage.outputs.remaining <= '3'
+        if: steps.stage.outputs.nothing_to_publish == 'false' && steps.build_poll.outputs.build_ok == 'true' && fromJSON(steps.stage.outputs.remaining) <= 3
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
