@@ -36,14 +36,14 @@ except ImportError:
 REPO_DIR  = Path(__file__).parent.resolve()
 POSTS_DIR = REPO_DIR / "_posts"
 LOG_PATH  = Path(__file__).parent / "LOGS" / f"HappyPet_{datetime.date.today().isoformat()}.log"
-LOCK_PATH = Path("/tmp/pawpicks_gen.lock")
+LOCK_PATH = Path("/tmp/happypet_gen.lock")
 LOG_PATH.parent.mkdir(exist_ok=True)  # ensure LOGS/ exists
 
-MODEL            = "gemini-2.5-flash"
-GEMINI_URL       = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+MODEL            = "llama-3.3-70b-versatile"
+GENERATOR_URL    = "https://api.groq.com/openai/v1/chat/completions"
 VERTEX_URL       = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
 GROQ_URL         = "https://api.groq.com/openai/v1/chat/completions"
-REVIEWER_MODEL   = "llama-3.3-70b-versatile"
+REVIEWER_MODEL   = "qwen/qwen3-32b"
 REVIEWER_ENABLED = True
 MAX_REVIEW_ATTEMPTS = 2
 INTER_DELAY      = 300
@@ -239,7 +239,7 @@ def call_gemini(prompt: str, api_key: str) -> str:
     
     for attempt in range(1, MAX_RETRIES + 1):
         try:
-            req = urllib.request.Request(GEMINI_URL, data=payload_openai, headers=headers_openai, method="POST")
+            req = urllib.request.Request(GENERATOR_URL, data=payload_openai, headers={**headers_openai, "User-Agent": "HappyPetReviews/1.0"}, method="POST")
             with urllib.request.urlopen(req, timeout=90) as resp:
                 data = json.loads(resp.read())
                 content = data["choices"][0]["message"]["content"]
@@ -430,13 +430,13 @@ STRUCTURE:
     - Include affiliate link per LINKING RULE above
     - Do not fabricate specs; hedge unverified claims ("many owners report..." / "tends to...")
 
-  Additional Picks: 2-3 products (H3 each, 60-75 words)
-    - Name real, well-known products that genuinely complement {product_name}
+  Additional Picks: Use ONLY these real products from web search (H3 each, 60-75 words)
+    {{ALTERNATIVE_PRODUCTS}}
     - Write each as a single prose paragraph — NO bullet lists
-    - Naturally include 1-2 genuine strengths AND 1-2 honest limitations
+    - Naturally include 1-2 genuine strengths AND 1-2 honest limitations  
     - DO NOT include star ratings, prices, or specific specs you cannot verify — omit numbers entirely
     - Hedge unverified claims: "tends to...", "most owners find...", "works well for..."
-    - No invented model numbers, dimensions, or materials
+    - Use ONLY the products listed above — do not add or invent others
 
   Comparison Table (H2): Product | Best For | Price Range | Durability
     - Price Range: use $, $$, $$$ only — do not invent specific dollar amounts for additional picks
@@ -473,6 +473,36 @@ WRITING STYLE:
 FORMAT: Return ONLY clean Markdown. No YAML. No preamble. Start writing immediately.
 FIRST LINE must be: PIN_DESC: [one punchy sentence, max 20 words, Pinterest stop-scroll hook]
 Then article body immediately after."""
+
+
+def find_alternative_products(keyword: str, primary_product: str, groq_key: str, count: int = 3) -> list:
+    """Use Groq Compound to find real alternative products via web search."""
+    prompt = f"Search for the top {count} popular alternative products to {primary_product} for '{keyword}'. For each product, provide: brand name, product name, and a brief description (one sentence). Return as a simple numbered list with format: Brand - Product Name: Description"
+    
+    payload = json.dumps({
+        "model": "groq/compound",
+        "messages": [{"role": "user", "content": prompt}],
+        "max_tokens": 500,
+        "temperature": 0.3,
+    }).encode()
+    
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {groq_key}",
+        "User-Agent": "Mozilla/5.0 (compatible; HappyPetReviews/1.0)"
+    }
+    
+    try:
+        req = urllib.request.Request("https://api.groq.com/openai/v1/chat/completions", 
+                                      data=payload, headers=headers, method="POST")
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            data = json.loads(resp.read())
+            content = data["choices"][0]["message"]["content"]
+            log(f"  Found {count} alternatives via Groq Compound web search")
+            return content
+    except Exception as exc:
+        log(f"  Alternative search failed: {exc}", "WARN")
+        return ""
 
 
 def review_and_rewrite(title: str, keyword: str, content: str, api_key: str) -> tuple:
@@ -537,7 +567,7 @@ def review_and_rewrite(title: str, keyword: str, content: str, api_key: str) -> 
             log_reviewer("  REWRITING based on editor feedback...")
             time.sleep(RPM_SLEEP)
             try:
-                content = call_gemini(make_rewrite_prompt(title, keyword, content, instructions), api_key)
+                content = call_gemini(make_rewrite_prompt(title, keyword, content, instructions), groq_key)
                 if content.startswith("PIN_DESC:"):
                     _, _, content = content.partition("\n")
             except Exception as e:
@@ -620,7 +650,7 @@ def main() -> None:
     if DOTENV_AVAILABLE:
         load_dotenv(Path.home() / ".env")
 
-    gemini_key = os.environ.get("GEMINI_API_KEY", "").strip()
+    groq_key = os.environ.get("GROQ_API_KEY", "").strip()
     groq_key   = os.environ.get("GROQ_API_KEY", "").strip()
 
     if LOCK_PATH.exists():
@@ -633,8 +663,8 @@ def main() -> None:
     LOCK_PATH.write_text(str(os.getpid()))
 
     try:
-        if not gemini_key:
-            log("GEMINI_API_KEY not set", "ERROR"); return
+        if not groq_key:
+            log("GROQ_API_KEY not set", "ERROR"); return
         if not groq_key:
             log("GROQ_API_KEY not set -- reviewer will skip", "WARN")
 
@@ -688,8 +718,33 @@ def main() -> None:
             related_url, related_anchor = find_related_published_slug(slug, category)
 
             try:
+                # For roundup, find real alternatives via Groq Compound
+                alternatives_text = ""
+                if fmt == "roundup":
+                    product_name = product.get("name", "")
+                    alternatives_text = find_alternative_products(keyword, product_name, groq_key, count=3)
+                
                 prompt  = make_prompt(title, keyword, slug, fmt, product, related_url, related_anchor)
-                content = call_gemini(prompt, gemini_key)
+                
+                # Inject alternatives into roundup prompt
+                if alternatives_text:
+                    prompt = prompt.replace("{{ALTERNATIVE_PRODUCTS}}", alternatives_text)
+                else:
+                    prompt = prompt.replace("{{ALTERNATIVE_PRODUCTS}}", "(Search unavailable - use well-known brands)")
+                
+                content = call_gemini(prompt, groq_key)
+                if fmt == "roundup":
+                    product_name = product.get("name", "")
+                    alternatives_text = find_alternative_products(keyword, product_name, groq_key, count=3)
+                
+                prompt  = make_prompt(title, keyword, slug, fmt, product, related_url, related_anchor)
+            # Inject alternatives into roundup prompt
+            if alternatives_text:
+                prompt = prompt.replace("{{ALTERNATIVE_PRODUCTS}}", alternatives_text)
+            else:
+                prompt = prompt.replace("{{ALTERNATIVE_PRODUCTS}}", "(Search unavailable - use well-known brands)")
+            
+                content = call_gemini(prompt, groq_key)
 
                 pin_desc = f"{title} - expert reviews and buying guide."
                 if content.startswith("PIN_DESC:"):

@@ -6,13 +6,13 @@ Usage:
   python3 skill-loader.py --list
   python3 skill-loader.py --tasks
   python3 skill-loader.py --task <type>
-  python3 skill-loader.py --pawpicks
+  python3 skill-loader.py --happypet
   python3 skill-loader.py --auto        ← NEW: infers tasks from NEXT PRIORITIES
 
 Examples:
   python3 skill-loader.py jekyll-affiliate seo-fundamentals
   python3 skill-loader.py --task article_writing
-  python3 skill-loader.py --pawpicks
+  python3 skill-loader.py --happypet
   python3 skill-loader.py --auto
 """
 
@@ -20,8 +20,8 @@ import os, sys, re
 from pathlib import Path
 
 SKILLS_DIR      = '/home/derek/.claude/skills'
-SESSION_CONTEXT = '/home/derek/projects/personal/pawpicks/.session-context.md'
-OUT_PATH        = '/tmp/pawpicks-skills-context.md'
+SESSION_CONTEXT = '/home/derek/Projects/HappyPet/.session-context.md'
+OUT_PATH        = '/tmp/happypet-skills-context.md'
 
 # Core skills always loaded regardless of task — useful in every session
 CORE_SKILLS = [
@@ -63,8 +63,8 @@ KEYWORD_TASK_MAP = [
     (r'audit|debug|syntax|fix|error|bug|fail',                   'code_review'),
 ]
 
-# PawPicks preset — full load, used as fallback if --auto finds nothing
-PAWPICKS_PRESET = [
+# HappyPet preset — full load, used as fallback if --auto finds nothing
+HAPPYPET_PRESET = [
     'jekyll-affiliate', 'python-pro', 'bash-pro',
     'seo-fundamentals', 'seo-audit', 'programmatic-seo',
     'schema-markup', 'web-performance-optimization',
@@ -126,9 +126,9 @@ def infer_tasks_from_priorities(verbose=True):
     ctx = Path(SESSION_CONTEXT)
     if not ctx.exists():
         if verbose:
-            print("  WARN: .session-context.md not found — falling back to --pawpicks",
+            print("  WARN: .session-context.md not found — falling back to --happypet",
                   file=sys.stderr)
-        return [], PAWPICKS_PRESET, ""
+        return [], HAPPYPET_PRESET, ""
 
     text = ctx.read_text()
 
@@ -145,9 +145,9 @@ def infer_tasks_from_priorities(verbose=True):
 
     if not matched_tasks:
         if verbose:
-            print("  WARN: No task keywords matched — falling back to --pawpicks",
+            print("  WARN: No task keywords matched — falling back to --happypet",
                   file=sys.stderr)
-        return [], PAWPICKS_PRESET, priorities
+        return [], HAPPYPET_PRESET, priorities
 
     # Build deduplicated skill list: core + matched task skills
     skill_list = list(CORE_SKILLS)
@@ -202,20 +202,20 @@ def main():
             print(f"\n  Tasks inferred ({len(matched_tasks)}): {', '.join(matched_tasks)}")
             print(f"  Skills selected ({len(skill_names)}): {', '.join(skill_names)}\n")
         else:
-            print("  Fallback: loading full --pawpicks preset\n")
+            print("  Fallback: loading full --happypet preset\n")
         content = load_skills(skill_names)
         with open(OUT_PATH, 'w') as f:
-            f.write(f"# Active Skills — auto: {', '.join(matched_tasks) or 'pawpicks fallback'}\n")
+            f.write(f"# Active Skills — auto: {', '.join(matched_tasks) or 'happypet fallback'}\n")
             f.write(f"# Skills: {', '.join(skill_names)}\n")
             f.write(content)
         print(f"\nContext written to: {OUT_PATH}")
         print(f"Total chars: {len(content):,}")
         return
 
-    if '--pawpicks' in args:
-        print(f"Loading PawPicks preset ({len(PAWPICKS_PRESET)} skills)...\n")
-        content = load_skills(PAWPICKS_PRESET)
-        skill_names = PAWPICKS_PRESET
+    if '--happypet' in args:
+        print(f"Loading HappyPet preset ({len(HAPPYPET_PRESET)} skills)...\n")
+        content = load_skills(HAPPYPET_PRESET)
+        skill_names = HAPPYPET_PRESET
     else:
         content = load_skills(args)
         skill_names = args

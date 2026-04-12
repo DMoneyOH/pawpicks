@@ -1,4 +1,4 @@
-name: Deploy PawPicks to GitHub Pages
+name: Deploy HappyPet to GitHub Pages
 
 on:
   push:

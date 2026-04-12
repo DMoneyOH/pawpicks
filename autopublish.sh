@@ -5,7 +5,7 @@
 set -Eeuo pipefail
 
 # GHA-compatible paths — fall back to local WSL paths when not running in Actions
-REPO_DIR="${GITHUB_WORKSPACE:-/home/derek/projects/personal/pawpicks}"
+REPO_DIR="${GITHUB_WORKSPACE:-/home/derek/Projects/HappyPet}"
 PATH="/home/derek/.local/bin:/home/derek/bin:/usr/local/bin:/usr/bin:/bin"
 GH="${GH_CLI:-$(command -v gh || echo /home/derek/bin/gh)}"
 MAX_WAIT=600

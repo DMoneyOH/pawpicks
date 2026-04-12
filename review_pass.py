@@ -8,7 +8,7 @@ Standalone review + affiliate-link repair pass for staged articles.
 Run: python3 review_pass.py
 """
 import sys, os, re, time, json
-sys.path.insert(0, '/home/derek/projects/personal/pawpicks')
+sys.path.insert(0, '/home/derek/Projects/HappyPet')
 from pathlib import Path
 from dotenv import load_dotenv
 
