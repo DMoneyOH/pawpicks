@@ -522,6 +522,58 @@ FIRST LINE must be: PIN_DESC: [one punchy sentence, max 20 words, Pinterest stop
 Then article body immediately after."""
 
 
+def fact_check_alternatives(content: str, primary_product: str, groq_key: str) -> str:
+    """Strip unverifiable stats from alternative product sections. Runs only on roundups."""
+    prompt = f"""You are a fact-checker for a pet product review blog. The article below has a FEATURED product ({primary_product}) with verified data, and ALTERNATIVE products with potentially fabricated statistics.
+
+TASK: Find ALL specific numbers in the ALTERNATIVE product sections (not the featured product). This includes:
+- Star ratings (e.g. "4.5-star rating")
+- Review counts (e.g. "over 12,000 reviews")
+- Percentages (e.g. "85% of reviewers", "reduce by up to 80%")
+- Study counts (e.g. "over 20 clinical studies")
+- Any other specific numerical claim
+
+For EACH number found in an alternative section, replace it with hedged language:
+- "4.5-star rating on Amazon" -> "strong ratings on Amazon"
+- "85% of Amazon reviewers" -> "most Amazon reviewers"
+- "over 12,000 Amazon reviews" -> "thousands of Amazon reviews"
+- "reduce bad breath by up to 80%" -> "shown to significantly reduce bad breath"
+- "over 20 clinical studies" -> "multiple clinical studies"
+
+DO NOT change anything in the Featured Pick section.
+DO NOT change any other content, structure, headings, links, or prose.
+Return the COMPLETE article with only the numerical claims in alternative sections replaced.
+
+ARTICLE:
+{content}"""
+
+    payload = json.dumps({
+        "model": "llama-3.1-8b-instant",
+        "messages": [{"role": "user", "content": prompt}],
+        "max_tokens": 8192,
+        "temperature": 0.1,
+    }).encode()
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {groq_key}",
+        "User-Agent": "Mozilla/5.0 (compatible; HappyPetReviews/1.0)",
+    }
+
+    try:
+        req = urllib.request.Request(GROQ_URL, data=payload, headers=headers, method="POST")
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            data = json.loads(resp.read())
+            cleaned = data["choices"][0]["message"]["content"]
+            if len(cleaned) < len(content) * 0.5:
+                log("  Fact-check output too short, keeping original", "WARN")
+                return content
+            log(f"  Fact-check: stripped unverified stats from alternatives ({len(content)} -> {len(cleaned)} chars)")
+            return cleaned
+    except Exception as exc:
+        log(f"  Fact-check failed: {exc} -- keeping original", "WARN")
+        return content
+
+
 def find_alternative_products(keyword: str, primary_product: str, groq_key: str, count: int = 3) -> str:
     """Find real alternative products. Primary: compound-mini (web-grounded). Fallback: 8b-instant."""
     prompt = f"Name the top {count} popular alternatives to {primary_product} for '{keyword}'. For each, provide: brand name, product name, and one sentence that includes a SPECIFIC differentiating feature (e.g. a key ingredient, a unique design element, or a specific use case it excels at). Be concrete, not vague. Return as a simple numbered list: Brand - Product Name: Description"
@@ -852,6 +904,10 @@ def main() -> None:
                 pin_desc = clean_pin_desc(pin_desc)
                 if len(content) < 2000:
                     log(f"  only {len(content)} chars -- may be truncated", "WARN")
+
+                # Fact-check: strip fabricated stats from alternative product sections (roundups only)
+                if fmt == "roundup":
+                    content = fact_check_alternatives(content, product.get("name", ""), groq_key)
 
                 time.sleep(RPM_SLEEP)
                 content, review_passed, review_flags = review_and_rewrite(title, keyword, content, groq_key)
