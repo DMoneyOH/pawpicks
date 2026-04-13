@@ -733,18 +733,6 @@ def main() -> None:
                     prompt = prompt.replace("{{ALTERNATIVE_PRODUCTS}}", "(Search unavailable - use well-known brands)")
                 
                 content = call_gemini(prompt, groq_key)
-                if fmt == "roundup":
-                    product_name = product.get("name", "")
-                    alternatives_text = find_alternative_products(keyword, product_name, groq_key, count=3)
-                
-                prompt  = make_prompt(title, keyword, slug, fmt, product, related_url, related_anchor)
-            # Inject alternatives into roundup prompt
-            if alternatives_text:
-                prompt = prompt.replace("{{ALTERNATIVE_PRODUCTS}}", alternatives_text)
-            else:
-                prompt = prompt.replace("{{ALTERNATIVE_PRODUCTS}}", "(Search unavailable - use well-known brands)")
-            
-                content = call_gemini(prompt, groq_key)
 
                 pin_desc = f"{title} - expert reviews and buying guide."
                 if content.startswith("PIN_DESC:"):
