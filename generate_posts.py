@@ -478,8 +478,9 @@ STRUCTURE:
     {{ALTERNATIVE_PRODUCTS}}
     - Write each as a single prose paragraph — NO bullet lists
     - Naturally include 1-2 genuine strengths AND 1-2 honest limitations  
-    - DO NOT include star ratings, prices, or specific specs you cannot verify — omit numbers entirely
+    - DO NOT include star ratings, prices, specific specs, or fabricated statistics/percentages you cannot verify -- omit numbers entirely
     - Hedge unverified claims: "tends to...", "most owners find...", "works well for..."
+    - DO NOT fabricate review data like "88% of owners reported..." -- if you don't have the number, don't include one
     - Use ONLY the products listed above — do not add or invent others
 
   Comparison Table (H2): Product | Best For | Price Range | Durability
@@ -505,9 +506,10 @@ WRITING STYLE:
 - Conversational, warm, authoritative -- like advice from a trusted friend who owns pets
 - Vary sentence length. Short punchy sentences mixed with longer flowing ones.
 - Use hyphens (-) for compound words and standard dashes where needed. NEVER use em dashes (—). Rewrite the sentence instead.
-- NO AI clichés -- never use: "delve", "it's worth noting", "in conclusion", "look no further", "game-changer", "comprehensive guide", "navigate"
-- Write warmly but avoid stock pet-blog phrases that signal AI copy: never use "paw-some", "put our paws", "tail wagging" as metaphor, "furry family member", "fur baby", or "pet parent". Use "dog owner" or "cat owner" instead of "pet parent". Natural warmth through genuine voice is encouraged -- forced wordplay is not.
-- FACTS: Only state product specs you are certain of from the product listing. If unsure, hedge with: "many owners report...", "tends to...", or "according to Amazon reviews...". Never invent dimensions, materials, weight, compatibility claims, or any number you were not given.
+- NO AI clichés -- never use: "delve", "it's worth noting", "in conclusion", "look no further", "game-changer", "comprehensive guide", "navigate", "we've all been there", "for good reason", "without breaking the bank", "in today's world", "when it comes to", "at the end of the day", "we all know", "as pet owners", "as dog owners", "as cat owners", "furry friend"
+- Write warmly but avoid stock pet-blog phrases that signal AI copy: never use "paw-some", "put our paws", "tail wagging" as metaphor, "furry family member", "fur baby", "pet parent", or "furry friend". Use "dog owner" or "cat owner" instead of "pet parent". Natural warmth through genuine voice is encouraged -- forced wordplay is not.
+- FACTS: Only state product specs you are certain of from the product listing. If unsure, hedge with: "many owners report...", "tends to...", or "according to Amazon reviews...". Never invent dimensions, materials, weight, compatibility claims, percentages, statistics, or any number you were not given. Do NOT fabricate reviewer percentages like "85% of owners said..." -- if you don't have the real number, don't include one.
+- SECTION HEADINGS: Never start a section with "In conclusion" or "In summary". Use a specific, descriptive heading instead.
 - OPENING: If it makes sense for the article topic, open with a specific relatable moment a dog or cat owner would instantly recognize. Show, don't tell.
   Good examples: "My dog chewed through a couch cushion on a 45-minute Zoom call." / "Our cat knocked the water bowl over three times in one week." / "I spent $40 on a toy my dog sniffed once and walked away from."
   Bad examples: "Dogs need mental stimulation to stay happy and healthy." (generic) / "As a pet owner, you know how important it is to..." (filler)
