@@ -642,7 +642,7 @@ def review_and_rewrite(title: str, keyword: str, content: str, api_key: str) -> 
             log_reviewer("  REWRITING based on editor feedback...")
             time.sleep(RPM_SLEEP)
             try:
-                content = call_gemini(make_rewrite_prompt(title, keyword, content, instructions), groq_key)
+                content = call_gemini(make_rewrite_prompt(title, keyword, content, instructions), api_key)
                 if content.startswith("PIN_DESC:"):
                     _, _, content = content.partition("\n")
             except Exception as e:
