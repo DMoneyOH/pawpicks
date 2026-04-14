@@ -388,7 +388,6 @@ PASS criteria (ALL must be true to pass):
   - readability >= 3
   - accuracy >= 3
   - affiliate_link_present = true (amzn.to link present in content)
-  - No more than 1 ai_cliche detected
   - If this is a roundup article (has "Additional Picks" or "Comparison Table" or multiple product sections): alternative products MUST have specific, concrete descriptions (not vague filler like "many owners find" or "tends to work well"). Each alternative needs at least one real distinguishing detail. If alternatives are generic filler, set pass=false and flag it.
 
 Return ONLY a single valid JSON object. No preamble, no markdown fences, no trailing text.
@@ -401,7 +400,8 @@ Rules:
 - rewrite_instructions must name exact sections and specific fixes if pass is false; empty string if pass is true
 - flags must list each specific problem as a plain string; empty array if none
 - em_dash_count must be the exact integer count of em dash characters (—) found in the article
-- ai_cliches_found must list any detected clichés from: delve, it's worth noting, in conclusion, look no further, game-changer, comprehensive guide, navigate, put our paws, paw-some, tail wagging, furry family member, furry friend, for good reason, we've all been there, without breaking the bank, our furry, in today's world, when it comes to, at the end of the day, we all know, as pet owners, as dog owners, as cat owners"""
+- ai_cliches_found must list any detected clichés from: delve, it's worth noting, in conclusion, look no further, game-changer, comprehensive guide, navigate, put our paws, paw-some, tail wagging, furry family member, furry friend, furry companion, for good reason, we've all been there, we've been there, there's nothing quite like, nothing quite like, we've got you covered, without breaking the bank, our furry, in today's world, when it comes to, at the end of the day, we all know, as pet owners, as dog owners, as cat owners
+- NOTE: ai_cliches_found is for logging only -- cliché presence does NOT cause a fail unless human_voice < 4. Flag them in ai_cliches_found but do not fail on clichés alone."""
 
 
 def make_rewrite_prompt(title: str, keyword: str, content: str, instructions: str) -> str:
@@ -485,9 +485,9 @@ STRUCTURE:
     - DO NOT fabricate review data like "88% of owners reported..." -- if you don't have the number, don't include one
     - Use ONLY the products listed above — do not add or invent others
 
-  Comparison Table (H2): Product | Best For | Price Range | Durability
+  Comparison Table (H2): Product | Best For | Price Range | Chew Time
     - Price Range: use $, $$, $$$ only — do not invent specific dollar amounts for additional picks
-    - Durability: Low / Medium / High based on product type and materials
+    - Chew Time: Quick (under 5 min) / Moderate (5-15 min) / Long (15+ min) -- estimate based on chew density and product type. For non-consumable products, use a relevant attribute instead of Chew Time.
     - Do NOT include a ratings column — only use verified ratings from product data above
 
   Buying Guide (H2, 150+ words)
@@ -508,7 +508,7 @@ WRITING STYLE:
 - Conversational, warm, authoritative -- like advice from a trusted friend who owns pets
 - Vary sentence length. Short punchy sentences mixed with longer flowing ones.
 - Use hyphens (-) for compound words and standard dashes where needed. NEVER use em dashes (—). Rewrite the sentence instead.
-- NO AI clichés -- never use: "delve", "it's worth noting", "in conclusion", "look no further", "game-changer", "comprehensive guide", "navigate", "we've all been there", "for good reason", "without breaking the bank", "in today's world", "when it comes to", "at the end of the day", "we all know", "as pet owners", "as dog owners", "as cat owners", "furry friend"
+- MINIMIZE stock phrases -- avoid where possible: "delve", "it's worth noting", "in conclusion", "look no further", "game-changer", "comprehensive guide", "navigate", "we've all been there", "we've been there", "there's nothing quite like", "we've got you covered", "for good reason", "without breaking the bank", "in today's world", "when it comes to", "at the end of the day", "we all know", "as pet owners", "as dog owners", "as cat owners", "furry friend", "furry companion"
 - Write warmly but avoid stock pet-blog phrases that signal AI copy: never use "paw-some", "put our paws", "tail wagging" as metaphor, "furry family member", "fur baby", "pet parent", or "furry friend". Use "dog owner" or "cat owner" instead of "pet parent". Natural warmth through genuine voice is encouraged -- forced wordplay is not.
 - FACTS: Only state product specs you are certain of from the product listing. If unsure, hedge with: "many owners report...", "tends to...", or "according to Amazon reviews...". Never invent dimensions, materials, weight, compatibility claims, percentages, statistics, or any number you were not given. Do NOT fabricate reviewer percentages like "85% of owners said..." -- if you don't have the real number, don't include one.
 - SECTION HEADINGS: Never start a section with "In conclusion" or "In summary". Use a specific, descriptive heading instead.
@@ -527,23 +527,34 @@ def fact_check_alternatives(content: str, primary_product: str, groq_key: str) -
     """Strip unverifiable stats from alternative product sections. Runs only on roundups."""
     prompt = f"""You are a fact-checker for a pet product review blog. The article below has a FEATURED product ({primary_product}) with verified data, and ALTERNATIVE products with potentially fabricated statistics.
 
-TASK: Find ALL specific numbers in the ALTERNATIVE product sections (not the featured product). This includes:
+TASK: Review the ALTERNATIVE product sections (not the featured product) for two types of problems:
+
+PART 1 -- Specific numbers: Find ALL specific numbers in alternative sections. This includes:
 - Star ratings (e.g. "4.5-star rating")
 - Review counts (e.g. "over 12,000 reviews")
 - Percentages (e.g. "85% of reviewers", "reduce by up to 80%")
 - Study counts (e.g. "over 20 clinical studies")
 - Any other specific numerical claim
 
-For EACH number found in an alternative section, replace it with hedged language:
+For EACH number found, replace it with hedged language:
 - "4.5-star rating on Amazon" -> "strong ratings on Amazon"
 - "85% of Amazon reviewers" -> "most Amazon reviewers"
 - "over 12,000 Amazon reviews" -> "thousands of Amazon reviews"
 - "reduce bad breath by up to 80%" -> "shown to significantly reduce bad breath"
 - "over 20 clinical studies" -> "multiple clinical studies"
 
+PART 2 -- Ingredient and mechanism claims: Check each specific ingredient or clinical mechanism named for an alternative product. Apply this rule:
+- If you are CONFIDENT the ingredient is correct for that exact product (e.g. delmopinol in OraVet), keep it.
+- If you are NOT CONFIDENT the ingredient is correct for that exact product, replace the specific claim with general language.
+  Examples:
+  - "contains chlorhexidine" (if uncertain) -> "uses an active antimicrobial system"
+  - "formulated with zinc gluconate" (if uncertain) -> "formulated with active ingredients to support oral health"
+  - When uncertain, describe the FUNCTION, not the specific ingredient.
+- Never leave a specific ingredient claim that you cannot verify. General is always safer than wrong.
+
 DO NOT change anything in the Featured Pick section.
 DO NOT change any other content, structure, headings, links, or prose.
-Return the COMPLETE article with only the numerical claims in alternative sections replaced.
+Return the COMPLETE article with only the flagged claims replaced.
 
 ARTICLE:
 {content}"""
