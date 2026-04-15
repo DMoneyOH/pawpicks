@@ -20,13 +20,13 @@ With a stellar 4.8/5 star rating, Greenies Original Regular Natural Dental Dog T
 * Low calorie and easy to digest
 * Helps reduce tartar and plaque
 * Made with natural ingredients
-* Can be expensive, with a price tag of $36.97
+* Can be expensive, with a price tag of 6.97
 * May not be suitable for dogs with sensitive stomachs
-We've found that many owners report a significant reduction in bad breath and improved oral health after switching to Greenies. 
+We've found that many owners report a significant reduction in bad breath and improved oral health after switching to Greenies.
 
-### Additional Picks: 
+### Additional Picks:
 #### OraVet Dental Chews
-OraVet Dental Chews are a great option for dog owners who want a chew that's both effective and easy to digest. They tend to work well for dogs with sensitive teeth and gums, and most Amazon reviewers find that they're a great way to keep their dog's breath fresh. However, they can be a bit pricey and may not be suitable for dogs with severe dental issues.
+OraVet Dental Chews use delmopinol, a unique ingredient that works by creating a barrier on teeth and gum surfaces to prevent bacteria from attaching and forming plaque. That mechanism makes them stand out from enzyme-based competitors. They tend to be well-liked by dogs and most owners report noticeable breath improvement, though they run on the pricier side and some dogs take time to warm up to the texture.
 
 #### Purina Pro Plan Dental Chews
 Purina Pro Plan Dental Chews are a popular choice among dog owners, and for good reason. They're affordable, easy to find, and tend to be well-liked by dogs. However, some owners have reported that they can be a bit too hard for their dog's teeth, and may not be suitable for dogs with certain dental conditions.
@@ -38,7 +38,7 @@ Virbac C.E.T. Dental Chews are a great option for dog owners who want a chew tha
 | Product | Best For | Price Range | Chew Time |
 | --- | --- | --- | --- |
 | Greenies Original Regular Natural Dental Dog Treats | Dogs with sensitive stomachs | $$ | Moderate |
-| OraVet Dental Chews | Dogs with sensitive teeth and gums | $$$ | Long |
+| OraVet Dental Chews | Preventing bacterial plaque attachment | $$$ | Long |
 | Purina Pro Plan Dental Chews | Dogs with mild dental issues | $ | Quick |
 | Virbac C.E.T. Dental Chews | Dogs with moderate dental issues | $$ | Moderate |
 
@@ -47,5 +47,3 @@ When it comes to choosing the best dog dental chews, there are a few things to k
 
 ## Closing
 After testing and reviewing the best dog dental chews on the market, we're confident that [Greenies Original Regular Natural Dental Dog Treats](https://amzn.to/4c0qQn5) are a top choice for dog owners who want a natural, effective way to keep their dog's teeth clean and their breath fresh. With their low calorie count, easy digestibility, and natural ingredients, they're a great option for dogs of all shapes and sizes. Whether you're looking for a quick and easy way to improve your dog's oral health or a more robust chew to keep them occupied, we think Greenies are a great choice. So why not give them a try and see the difference for yourself? With a price tag of $36.97, they're a worthwhile investment in your dog's health and happiness. We're confident that you'll be happy with the results - and so will your dog.
-
-Note: I've only reviewed the alternative product sections for the two types of problems specified. The Featured Pick section remains unchanged.
