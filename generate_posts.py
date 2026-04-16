@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Happy Pet Product Reviews Generator v21.1 — Gen fallback: OR gpt-oss-120b (GHA-safe, no Cloudflare block)
+Happy Pet Product Reviews Generator v21.2 — Fact-check truncation guard raised to 85%
 - TOPICS derived entirely from products.json (no hardcoded list)
 - products.json is single source of truth: slug, title, keyword, format, category, species, topical_sheet
 - Dynamic internal links: resolved at runtime from published _posts/ by category
@@ -563,8 +563,8 @@ ARTICLE:
         raw     = http_post(GROQ_URL, payload, headers, label="FactCheck-8b",
                             timeout=60, retries=2, backoff_base=60)
         cleaned = json.loads(raw)["choices"][0]["message"]["content"]
-        if len(cleaned) < len(content) * 0.5:
-            log("  Fact-check output too short, keeping original", "WARN")
+        if len(cleaned) < len(content) * 0.85:
+            log(f"  Fact-check output too short ({len(cleaned)} vs {len(content)}), keeping original", "WARN")
             return content
         log(f"  Fact-check ok: {len(content)} -> {len(cleaned)} chars")
         return cleaned
@@ -581,8 +581,8 @@ ARTICLE:
         raw     = http_post(GROQ_URL, fb_payload, headers, label="FactCheck-70b",
                             timeout=60, retries=2, backoff_base=60)
         cleaned = json.loads(raw)["choices"][0]["message"]["content"]
-        if len(cleaned) < len(content) * 0.5:
-            log("  Fact-check fallback too short, keeping original", "WARN")
+        if len(cleaned) < len(content) * 0.85:
+            log(f"  Fact-check fallback too short ({len(cleaned)} vs {len(content)}), keeping original", "WARN")
             return content
         log(f"  Fact-check fallback ok: {len(content)} -> {len(cleaned)} chars")
         return cleaned
@@ -892,7 +892,7 @@ def main() -> None:
         POSTS_DIR.mkdir(parents=True, exist_ok=True)
         today     = datetime.date.today().isoformat()
         generated = skipped = failed = held = 0
-        log(f"START v21.1 -- {len(topics)} topics -- generator={GEMINI_MODEL} reviewer={'ON' if REVIEWER_ENABLED else 'OFF'}")
+        log(f"START v21.2 -- {len(topics)} topics -- generator={GEMINI_MODEL} reviewer={'ON' if REVIEWER_ENABLED else 'OFF'}")
 
         for i, (slug, title, keyword, fmt) in enumerate(topics, 1):
             if slug in used_slugs:
