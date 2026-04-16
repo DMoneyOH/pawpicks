@@ -849,7 +849,7 @@ def main() -> None:
         POSTS_DIR.mkdir(parents=True, exist_ok=True)
         today     = datetime.date.today().isoformat()
         generated = skipped = failed = held = 0
-        log(f"START v15 -- {len(topics)} topics -- model={MODEL} reviewer={'ON' if REVIEWER_ENABLED else 'OFF'}")
+        log(f"START v18 -- {len(topics)} topics -- generator={GEMINI_MODEL} reviewer={'ON' if REVIEWER_ENABLED else 'OFF'}")
 
         for i, (slug, title, keyword, fmt) in enumerate(topics, 1):
             if slug in used_slugs:
