@@ -1,10 +1,9 @@
 name: Stage 2 — Publish Articles
 
 on:
-  # schedule:
+  schedule:
     # Mon + Thu 7:00 AM ET = 12:00 UTC (EDT, Apr-Nov)
-    # DISABLED — generator quality iteration in progress
-    # - cron: '0 12 * * 1,4'
+    - cron: '0 12 * * 1,4'
   workflow_dispatch:
     inputs:
       force_cap:
