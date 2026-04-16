@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Happy Pet Product Reviews Generator v20 — P2-C Shared HTTP Helper + Retry Consolidation
+Happy Pet Product Reviews Generator v21 — Multi-Provider Chain: Validated Models, No Overlap
 - TOPICS derived entirely from products.json (no hardcoded list)
 - products.json is single source of truth: slug, title, keyword, format, category, species, topical_sheet
 - Dynamic internal links: resolved at runtime from published _posts/ by category
@@ -40,19 +40,23 @@ LOCK_PATH = Path("/tmp/happypet_gen.lock")
 LOG_PATH.parent.mkdir(exist_ok=True)  # ensure LOGS/ exists
 
 # --- Provider config ---
-# Generator:  Gemini 2.0 Flash (primary) -> OpenRouter Llama 70B (fallback)
-# Reviewer:   Groq qwen3-32b (isolated -- no generator traffic)
-# Rewriter:   Groq llama-3.3-70b-versatile (isolated)
-# Fact-check: Groq llama-3.1-8b-instant (high RPD, small payload)
-GEMINI_MODEL         = "gemini-2.0-flash"
+# Generator:  Gemini 2.5 Flash (primary)          -> Groq llama-3.3-70b-versatile (fallback)
+# Reviewer:   Groq qwen3-32b (primary)             -> OpenRouter gpt-oss-120b:free (fallback)
+# Rewriter:   Groq llama-4-scout (primary)         -> OpenRouter gpt-oss-120b:free (fallback)
+# Fact-check: Groq llama-3.1-8b-instant (primary)  -> Groq llama-3.3-70b-versatile (fallback)
+GEMINI_MODEL         = "gemini-2.5-flash"
 GEMINI_URL           = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
-OPENROUTER_URL       = "https://openrouter.ai/api/v1/chat/completions"
-OPENROUTER_MODEL     = "meta-llama/llama-3.3-70b-instruct:free"
 GROQ_URL             = "https://api.groq.com/openai/v1/chat/completions"
-GROQ_REWRITE_MODEL   = "llama-3.3-70b-versatile"
-GROQ_FACTCHECK_MODEL = "llama-3.1-8b-instant"
+OPENROUTER_URL       = "https://openrouter.ai/api/v1/chat/completions"
+GROQ_GEN_MODEL       = "llama-3.3-70b-versatile"
 REVIEWER_MODEL       = "qwen/qwen3-32b"
+REVIEWER_FALLBACK    = "openai/gpt-oss-120b:free"
 REVIEWER_ENABLED     = True
+GROQ_REWRITE_MODEL   = "meta-llama/llama-4-scout-17b-16e-instruct"
+REWRITE_FALLBACK     = "openai/gpt-oss-120b:free"
+GROQ_FACTCHECK_MODEL = "llama-3.1-8b-instant"
+FACTCHECK_FALLBACK   = "llama-3.3-70b-versatile"
+OR_HEADERS_EXTRA     = {"HTTP-Referer": "https://happypetproductreviews.com", "X-Title": "HappyPetReviews"}
 MAX_REVIEW_ATTEMPTS  = 3
 INTER_DELAY          = 300
 RPM_SLEEP            = 8
@@ -262,16 +266,16 @@ def validate_product(slug: str, product: dict) -> list:
     return errors
 
 
-def call_gemini(prompt: str, api_key: str) -> str:
+def call_generator(prompt: str, api_key: str) -> str:
     """
-    Generator call chain (isolated from reviewer/rewriter):
-      1. Gemini 2.0 Flash via AI Studio OpenAI-compatible endpoint
-      2. OpenRouter meta-llama/llama-3.3-70b-instruct:free
+    Generator call chain:
+      1. Gemini 2.5 Flash (AI Studio) -- primary, 2 retries at 60s
+      2. Groq llama-3.3-70b-versatile -- fallback, 2 retries at 60s
     Raises RuntimeError if both exhausted.
     """
-    openrouter_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
+    groq_gen_key = os.environ.get("GROQ_API_KEY", "").strip()
 
-    # --- Tier 1: Gemini 2.0 Flash (AI Studio, OpenAI-compatible) ---
+    # --- Tier 1: Gemini 2.5 Flash ---
     payload = json.dumps({
         "model": GEMINI_MODEL,
         "messages": [{"role": "user", "content": prompt}],
@@ -283,42 +287,40 @@ def call_gemini(prompt: str, api_key: str) -> str:
         "Authorization": f"Bearer {api_key}",
     }
     try:
-        raw     = http_post(GEMINI_URL, payload, headers, label="Gemini",
-                            timeout=90, backoff_base=60,
+        raw     = http_post(GEMINI_URL, payload, headers, label="Gemini-2.5-Flash",
+                            timeout=90, retries=2, backoff_base=60,
                             passthrough_codes=frozenset({400, 401, 403, 404}))
         data    = json.loads(raw)
         content = data["choices"][0]["message"]["content"]
         finish  = data["choices"][0].get("finish_reason", "?")
         tokens  = data.get("usage", {}).get("completion_tokens", "?")
-        log(f"  API ok (Gemini 2.0 Flash): {len(content)} chars, {tokens} tokens, finish={finish}")
+        log(f"  API ok (Gemini 2.5 Flash): {len(content)} chars, {tokens} tokens, finish={finish}")
         return content
     except RuntimeError as exc:
-        log(f"  Gemini exhausted/failed: {exc} -- falling through to OpenRouter", "WARN")
+        log(f"  Gemini failed: {exc} -- failing over to Groq", "WARN")
 
-    # --- Tier 2: OpenRouter Llama 3.3 70B (free, separate quota pool) ---
-    if not openrouter_key:
-        raise RuntimeError("Gemini exhausted and OPENROUTER_API_KEY not set for failover")
+    # --- Tier 2: Groq llama-3.3-70b-versatile ---
+    if not groq_gen_key:
+        raise RuntimeError("Gemini exhausted and GROQ_API_KEY not set for failover")
 
-    log("  Gemini exhausted -- failing over to OpenRouter llama-3.3-70b-instruct:free", "WARN")
-    or_payload = json.dumps({
-        "model": OPENROUTER_MODEL,
+    log("  Failing over to Groq llama-3.3-70b-versatile", "WARN")
+    groq_payload = json.dumps({
+        "model": GROQ_GEN_MODEL,
         "messages": [{"role": "user", "content": prompt}],
         "max_tokens": 8192,
         "temperature": 0.75,
     }).encode()
-    or_headers = {
+    groq_headers = {
         "Content-Type": "application/json",
-        "Authorization": f"Bearer {openrouter_key}",
-        "HTTP-Referer": "https://happypetproductreviews.com",
-        "X-Title": "HappyPetReviews",
+        "Authorization": f"Bearer {groq_gen_key}",
     }
-    raw     = http_post(OPENROUTER_URL, or_payload, or_headers, label="OpenRouter",
-                        timeout=90, backoff_base=60)
+    raw     = http_post(GROQ_URL, groq_payload, groq_headers, label="Groq-Gen",
+                        timeout=90, retries=2, backoff_base=60)
     data    = json.loads(raw)
     content = data["choices"][0]["message"]["content"]
     finish  = data["choices"][0].get("finish_reason", "?")
     tokens  = data.get("usage", {}).get("completion_tokens", "?")
-    log(f"  API ok (OpenRouter fallback): {len(content)} chars, {tokens} tokens, finish={finish}")
+    log(f"  API ok (Groq llama-3.3-70b-versatile): {len(content)} chars, {tokens} tokens, finish={finish}")
     return content
 
 def make_review_prompt(title: str, keyword: str, content: str) -> str:
@@ -483,7 +485,7 @@ STRUCTURE: Opening (100+ words) | What to Look For (H2, 5-6 key factors) | Our T
 Write a complete, publish-ready blog post. Title: "{title}". Focus keyword: "{keyword}".
 
 {affiliate_block}
-LENGTH: 950-1100 words of body content. Firm requirement.
+LENGTH: 950-1100 words of body content. Firm requirement. CRITICAL: Complete ALL sections before stopping. Do not stop early. Write every section in STRUCTURE completely.
 
 {structure}
 
@@ -557,15 +559,34 @@ ARTICLE:
     }
 
     try:
-        raw     = http_post(GROQ_URL, payload, headers, label="FactCheck", timeout=60, retries=1)
+        raw     = http_post(GROQ_URL, payload, headers, label="FactCheck-8b",
+                            timeout=60, retries=2, backoff_base=60)
         cleaned = json.loads(raw)["choices"][0]["message"]["content"]
         if len(cleaned) < len(content) * 0.5:
             log("  Fact-check output too short, keeping original", "WARN")
             return content
-        log(f"  Fact-check: stripped unverified stats from alternatives ({len(content)} -> {len(cleaned)} chars)")
+        log(f"  Fact-check ok: {len(content)} -> {len(cleaned)} chars")
         return cleaned
     except Exception as exc:
-        log(f"  Fact-check failed: {exc} -- keeping original", "WARN")
+        log(f"  Fact-check primary failed: {exc} -- trying fallback", "WARN")
+    # Fallback: llama-3.3-70b-versatile
+    try:
+        fc_prompt = json.loads(payload.decode())["messages"][0]["content"]
+        fb_payload = json.dumps({
+            "model": FACTCHECK_FALLBACK,
+            "messages": [{"role": "user", "content": fc_prompt}],
+            "max_tokens": 8192, "temperature": 0.1,
+        }).encode()
+        raw     = http_post(GROQ_URL, fb_payload, headers, label="FactCheck-70b",
+                            timeout=60, retries=2, backoff_base=60)
+        cleaned = json.loads(raw)["choices"][0]["message"]["content"]
+        if len(cleaned) < len(content) * 0.5:
+            log("  Fact-check fallback too short, keeping original", "WARN")
+            return content
+        log(f"  Fact-check fallback ok: {len(content)} -> {len(cleaned)} chars")
+        return cleaned
+    except Exception as exc:
+        log(f"  Fact-check fallback failed: {exc} -- keeping original", "WARN")
         return content
 
 
@@ -635,7 +656,7 @@ def review_and_rewrite(title: str, keyword: str, content: str, api_key: str) -> 
             }
             # Reviewer-specific retry loop for 429 with model fallback
             raw = None
-            review_models = [REVIEWER_MODEL, "openai/gpt-oss-120b"]
+            review_models = [REVIEWER_MODEL, REVIEWER_FALLBACK]
             for model_idx, rev_model in enumerate(review_models):
                 if raw is not None:
                     break
@@ -659,6 +680,7 @@ def review_and_rewrite(title: str, keyword: str, content: str, api_key: str) -> 
                 log_reviewer("  review call failed after retries -- skipping review", "WARN")
                 return content, True, []
             raw = re.sub(r"```json|```", "", raw).strip()
+            raw = re.sub(r"<think>.*?</think>", "", raw, flags=re.DOTALL).strip()
             m = re.search(r"\{.*\}", raw, re.DOTALL)
             raw = m.group(0) if m else raw
             scorecard = json.loads(raw)
@@ -693,7 +715,7 @@ def review_and_rewrite(title: str, keyword: str, content: str, api_key: str) -> 
                 log_reviewer("  REWRITING via Gemini (original model)...")
                 time.sleep(RPM_SLEEP)
                 try:
-                    content = call_gemini(make_rewrite_prompt(title, keyword, content, instructions), api_key)
+                    content = call_generator(make_rewrite_prompt(title, keyword, content, instructions), api_key)
                     if content.startswith("PIN_DESC:"):
                         _, _, content = content.partition("\n")
                 except Exception as e:
@@ -706,28 +728,47 @@ def review_and_rewrite(title: str, keyword: str, content: str, api_key: str) -> 
                 if not groq_key_rewrite:
                     log_reviewer("  WARN: GROQ_API_KEY not set, cannot failover rewrite")
                     return content, False, flags
+                rw_prompt_text = make_rewrite_prompt(title, keyword, content, instructions)
+                rw_content = None
+                # Tier 1: Groq llama-4-scout
                 try:
-                    rewrite_payload = json.dumps({
+                    rw_payload = json.dumps({
                         "model": GROQ_REWRITE_MODEL,
-                        "messages": [{"role": "user", "content": make_rewrite_prompt(title, keyword, content, instructions)}],
-                        "max_tokens": 8192,
-                        "temperature": 0.7,
+                        "messages": [{"role": "user", "content": rw_prompt_text}],
+                        "max_tokens": 8192, "temperature": 0.7,
                     }).encode()
-                    rewrite_headers = {
-                        "Content-Type": "application/json",
-                        "Authorization": f"Bearer {groq_key_rewrite}",
-                        "User-Agent": "Mozilla/5.0 (compatible; HappyPetReviews/1.0)",
-                    }
-                    raw_rw  = http_post(GROQ_URL, rewrite_payload, rewrite_headers,
-                                        label="Rewriter-Groq", log_fn=log_reviewer,
-                                        timeout=90, backoff_base=30)
-                    content = json.loads(raw_rw)["choices"][0]["message"]["content"]
-                    if content.startswith("PIN_DESC:"):
-                        _, _, content = content.partition("\n")
-                    log_reviewer(f"  Groq rewrite ok: {len(content)} chars")
+                    rw_headers = {"Content-Type": "application/json",
+                                  "Authorization": f"Bearer {groq_key_rewrite}"}
+                    raw_rw     = http_post(GROQ_URL, rw_payload, rw_headers,
+                                           label="Rewriter-Groq", log_fn=log_reviewer,
+                                           timeout=90, retries=2, backoff_base=60)
+                    rw_content = json.loads(raw_rw)["choices"][0]["message"]["content"]
+                    log_reviewer(f"  Groq rewrite ok: {len(rw_content)} chars")
                 except Exception as e:
-                    log_reviewer(f"  WARN: Groq rewrite failed: {e}")
-                    return content, False, flags
+                    log_reviewer(f"  Groq rewrite failed: {e} -- trying OR fallback", "WARN")
+                # Tier 2: OpenRouter gpt-oss-120b:free
+                if not rw_content:
+                    try:
+                        or_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
+                        rw_or_payload = json.dumps({
+                            "model": REWRITE_FALLBACK,
+                            "messages": [{"role": "user", "content": rw_prompt_text}],
+                            "max_tokens": 8192, "temperature": 0.7,
+                        }).encode()
+                        rw_or_headers = {"Content-Type": "application/json",
+                                         "Authorization": f"Bearer {or_key}",
+                                         **OR_HEADERS_EXTRA}
+                        raw_rw     = http_post(OPENROUTER_URL, rw_or_payload, rw_or_headers,
+                                               label="Rewriter-OR", log_fn=log_reviewer,
+                                               timeout=90, retries=2, backoff_base=60)
+                        rw_content = json.loads(raw_rw)["choices"][0]["message"]["content"]
+                        log_reviewer(f"  OR rewrite ok: {len(rw_content)} chars")
+                    except Exception as e:
+                        log_reviewer(f"  WARN: OR rewrite failed: {e}")
+                        return content, False, flags
+                content = rw_content
+                if content.startswith("PIN_DESC:"):
+                    _, _, content = content.partition("\n")
         else:
             log_reviewer(f"  REVIEW FAILED after {attempt} attempt(s) -- creating GitHub issue", "WARN")
             return content, False, flags
@@ -850,7 +891,7 @@ def main() -> None:
         POSTS_DIR.mkdir(parents=True, exist_ok=True)
         today     = datetime.date.today().isoformat()
         generated = skipped = failed = held = 0
-        log(f"START v20 -- {len(topics)} topics -- generator={GEMINI_MODEL} reviewer={'ON' if REVIEWER_ENABLED else 'OFF'}")
+        log(f"START v21 -- {len(topics)} topics -- generator={GEMINI_MODEL} reviewer={'ON' if REVIEWER_ENABLED else 'OFF'}")
 
         for i, (slug, title, keyword, fmt) in enumerate(topics, 1):
             if slug in used_slugs:
@@ -897,7 +938,7 @@ def main() -> None:
                 else:
                     prompt = prompt.replace("{{ALTERNATIVE_PRODUCTS}}", "(Search unavailable - use well-known brands)")
                 
-                content = call_gemini(prompt, groq_key)
+                content = call_generator(prompt, groq_key)
 
                 pin_desc = f"{title} - expert reviews and buying guide."
                 if content.startswith("PIN_DESC:"):
