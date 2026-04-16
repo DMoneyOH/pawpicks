@@ -1,0 +1,28 @@
+name: Refresh Facebook Page Token
+
+on:
+  schedule:
+    - cron: '0 10 1 * *'  # 1st of every month at 10:00 AM UTC
+  workflow_dispatch:        # manual trigger as backup
+
+jobs:
+  refresh-token:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Exchange for fresh 60-day token
+        id: refresh
+        run: |
+          RESPONSE=$(curl -s "https://graph.facebook.com/oauth/access_token?grant_type=fb_exchange_token&client_id=${{ secrets.FACEBOOK_APP_ID }}&client_secret=${{ secrets.FACEBOOK_APP_SECRET }}&fb_exchange_token=${{ secrets.FACEBOOK_PAGE_TOKEN }}")
+          NEW_TOKEN=$(echo $RESPONSE | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
+          echo "new_token=$NEW_TOKEN" >> $GITHUB_OUTPUT
+
+      - name: Update GHA secret
+        uses: gliech/create-github-secret-action@v1
+        with:
+          name: FACEBOOK_PAGE_TOKEN
+          value: ${{ steps.refresh.outputs.new_token }}
+          pa_token: ${{ secrets.GH_PAT }}
+
+      - name: Verify new token
+        run: |
+          curl -s "https://graph.facebook.com/me?access_token=${{ steps.refresh.outputs.new_token }}&fields=name" | python3 -c "import sys,json; d=json.load(sys.stdin); print(f'✅ Token valid for: {d["name"]}')"
