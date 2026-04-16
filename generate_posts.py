@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Happy Pet Product Reviews Generator v21 — Multi-Provider Chain: Validated Models, No Overlap
+Happy Pet Product Reviews Generator v21.1 — Gen fallback: OR gpt-oss-120b (GHA-safe, no Cloudflare block)
 - TOPICS derived entirely from products.json (no hardcoded list)
 - products.json is single source of truth: slug, title, keyword, format, category, species, topical_sheet
 - Dynamic internal links: resolved at runtime from published _posts/ by category
@@ -40,7 +40,7 @@ LOCK_PATH = Path("/tmp/happypet_gen.lock")
 LOG_PATH.parent.mkdir(exist_ok=True)  # ensure LOGS/ exists
 
 # --- Provider config ---
-# Generator:  Gemini 2.5 Flash (primary)          -> Groq llama-3.3-70b-versatile (fallback)
+# Generator:  Gemini 2.5 Flash (primary)          -> OpenRouter gpt-oss-120b:free (fallback)
 # Reviewer:   Groq qwen3-32b (primary)             -> OpenRouter gpt-oss-120b:free (fallback)
 # Rewriter:   Groq llama-4-scout (primary)         -> OpenRouter gpt-oss-120b:free (fallback)
 # Fact-check: Groq llama-3.1-8b-instant (primary)  -> Groq llama-3.3-70b-versatile (fallback)
@@ -48,7 +48,7 @@ GEMINI_MODEL         = "gemini-2.5-flash"
 GEMINI_URL           = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
 GROQ_URL             = "https://api.groq.com/openai/v1/chat/completions"
 OPENROUTER_URL       = "https://openrouter.ai/api/v1/chat/completions"
-GROQ_GEN_MODEL       = "llama-3.3-70b-versatile"
+OR_GEN_MODEL         = "openai/gpt-oss-120b:free"
 REVIEWER_MODEL       = "qwen/qwen3-32b"
 REVIEWER_FALLBACK    = "openai/gpt-oss-120b:free"
 REVIEWER_ENABLED     = True
@@ -273,7 +273,7 @@ def call_generator(prompt: str, api_key: str) -> str:
       2. Groq llama-3.3-70b-versatile -- fallback, 2 retries at 60s
     Raises RuntimeError if both exhausted.
     """
-    groq_gen_key = os.environ.get("GROQ_API_KEY", "").strip()
+    or_gen_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
 
     # --- Tier 1: Gemini 2.5 Flash ---
     payload = json.dumps({
@@ -297,30 +297,31 @@ def call_generator(prompt: str, api_key: str) -> str:
         log(f"  API ok (Gemini 2.5 Flash): {len(content)} chars, {tokens} tokens, finish={finish}")
         return content
     except RuntimeError as exc:
-        log(f"  Gemini failed: {exc} -- failing over to Groq", "WARN")
+        log(f"  Gemini failed: {exc} -- failing over to OpenRouter", "WARN")
 
-    # --- Tier 2: Groq llama-3.3-70b-versatile ---
-    if not groq_gen_key:
-        raise RuntimeError("Gemini exhausted and GROQ_API_KEY not set for failover")
+    # --- Tier 2: OpenRouter gpt-oss-120b:free ---
+    if not or_gen_key:
+        raise RuntimeError("Gemini exhausted and OPENROUTER_API_KEY not set for failover")
 
-    log("  Failing over to Groq llama-3.3-70b-versatile", "WARN")
-    groq_payload = json.dumps({
-        "model": GROQ_GEN_MODEL,
+    log("  Failing over to OpenRouter gpt-oss-120b:free", "WARN")
+    or_gen_payload = json.dumps({
+        "model": OR_GEN_MODEL,
         "messages": [{"role": "user", "content": prompt}],
         "max_tokens": 8192,
         "temperature": 0.75,
     }).encode()
-    groq_headers = {
+    or_gen_headers = {
         "Content-Type": "application/json",
-        "Authorization": f"Bearer {groq_gen_key}",
+        "Authorization": f"Bearer {or_gen_key}",
+        **OR_HEADERS_EXTRA,
     }
-    raw     = http_post(GROQ_URL, groq_payload, groq_headers, label="Groq-Gen",
+    raw     = http_post(OPENROUTER_URL, or_gen_payload, or_gen_headers, label="OR-Gen",
                         timeout=90, retries=2, backoff_base=60)
     data    = json.loads(raw)
     content = data["choices"][0]["message"]["content"]
     finish  = data["choices"][0].get("finish_reason", "?")
     tokens  = data.get("usage", {}).get("completion_tokens", "?")
-    log(f"  API ok (Groq llama-3.3-70b-versatile): {len(content)} chars, {tokens} tokens, finish={finish}")
+    log(f"  API ok (OpenRouter gpt-oss-120b:free): {len(content)} chars, {tokens} tokens, finish={finish}")
     return content
 
 def make_review_prompt(title: str, keyword: str, content: str) -> str:
@@ -891,7 +892,7 @@ def main() -> None:
         POSTS_DIR.mkdir(parents=True, exist_ok=True)
         today     = datetime.date.today().isoformat()
         generated = skipped = failed = held = 0
-        log(f"START v21 -- {len(topics)} topics -- generator={GEMINI_MODEL} reviewer={'ON' if REVIEWER_ENABLED else 'OFF'}")
+        log(f"START v21.1 -- {len(topics)} topics -- generator={GEMINI_MODEL} reviewer={'ON' if REVIEWER_ENABLED else 'OFF'}")
 
         for i, (slug, title, keyword, fmt) in enumerate(topics, 1):
             if slug in used_slugs:
