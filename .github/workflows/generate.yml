@@ -5,7 +5,12 @@ on:
     # Mon + Thu 3:15 AM ET = 8:15 UTC (EDT, Apr-Nov)
     # Winter (EST): shifts to 8:15 UTC = 3:15 AM EST — same expression, no drift
     - cron: '15 8 * * 1,4'
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      force_cap:
+        description: 'Override article cap (1 or 2)'
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -63,9 +68,28 @@ jobs:
             echo "Queue empty — nothing to generate"
           fi
 
+      - name: Determine cap
+        id: cap
+        run: |
+          OVERRIDE="${{ github.event.inputs.force_cap }}"
+          if [ -n "$OVERRIDE" ]; then
+            echo "cap=${OVERRIDE}" >> "$GITHUB_OUTPUT"
+            echo "Generate cap (override): ${OVERRIDE}"
+          else
+            DOW=$(date '+%u')
+            if [ "$DOW" = "1" ]; then
+              echo "cap=2" >> "$GITHUB_OUTPUT"
+              echo "Monday run — cap 2"
+            else
+              echo "cap=1" >> "$GITHUB_OUTPUT"
+              echo "Thursday run — cap 1"
+            fi
+          fi
+
       - name: Run generator
         if: steps.queue_check.outputs.queue_count != '0'
         env:
+          MAX_ARTICLES: ${{ steps.cap.outputs.cap }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           GOOGLE_CSE_KEY: ${{ secrets.GOOGLE_CSE_KEY }}

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Happy Pet Product Reviews Generator v16 — Phase 1 Hardened Pipeline
+Happy Pet Product Reviews Generator v17 — Phase 1 Hardened Pipeline
 - TOPICS derived entirely from products.json (no hardcoded list)
 - products.json is single source of truth: slug, title, keyword, format, category, species, topical_sheet
 - Dynamic internal links: resolved at runtime from published _posts/ by category
@@ -862,6 +862,10 @@ def main() -> None:
 
         used_slugs = build_used_slugs()
         log(f"Dedup: {len(used_slugs)} slugs already published")
+
+        max_articles = int(os.environ.get("MAX_ARTICLES", "999"))
+        topics = topics[:max_articles]
+        log(f"Cap: {max_articles} -- {len(topics)} topic(s) queued this run")
 
         POSTS_DIR.mkdir(parents=True, exist_ok=True)
         today     = datetime.date.today().isoformat()
