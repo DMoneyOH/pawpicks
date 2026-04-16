@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Happy Pet Product Reviews Generator v21.2 — Fact-check truncation guard raised to 85%
+Happy Pet Product Reviews Generator v21.3 — Fact-check token fix: 1500 char input, 4096 max_tokens
 - TOPICS derived entirely from products.json (no hardcoded list)
 - products.json is single source of truth: slug, title, keyword, format, category, species, topical_sheet
 - Dynamic internal links: resolved at runtime from published _posts/ by category
@@ -512,7 +512,7 @@ Then article body immediately after."""
 def fact_check_alternatives(content: str, primary_product: str, groq_key: str) -> str:
     """Strip unverifiable stats from alternative product sections. Runs only on roundups."""
     # Truncate to 3000 chars to stay within llama-3.1-8b-instant input limit (prevents 413)
-    content_fc = content[:3000] if len(content) > 3000 else content
+    content_fc = content[:1500] if len(content) > 1500 else content
     prompt = f"""You are a fact-checker for a pet product review blog. The article below has a FEATURED product ({primary_product}) with verified data, and ALTERNATIVE products with potentially fabricated statistics.
 
 TASK: Review the ALTERNATIVE product sections (not the featured product) for two types of problems:
@@ -550,7 +550,7 @@ ARTICLE:
     payload = json.dumps({
         "model": GROQ_FACTCHECK_MODEL,
         "messages": [{"role": "user", "content": prompt}],
-        "max_tokens": 8192,
+        "max_tokens": 4096,
         "temperature": 0.1,
     }).encode()
     headers = {
@@ -576,7 +576,7 @@ ARTICLE:
         fb_payload = json.dumps({
             "model": FACTCHECK_FALLBACK,
             "messages": [{"role": "user", "content": fc_prompt}],
-            "max_tokens": 8192, "temperature": 0.1,
+            "max_tokens": 4096, "temperature": 0.1,
         }).encode()
         raw     = http_post(GROQ_URL, fb_payload, headers, label="FactCheck-70b",
                             timeout=60, retries=2, backoff_base=60)
@@ -892,7 +892,7 @@ def main() -> None:
         POSTS_DIR.mkdir(parents=True, exist_ok=True)
         today     = datetime.date.today().isoformat()
         generated = skipped = failed = held = 0
-        log(f"START v21.2 -- {len(topics)} topics -- generator={GEMINI_MODEL} reviewer={'ON' if REVIEWER_ENABLED else 'OFF'}")
+        log(f"START v21.3 -- {len(topics)} topics -- generator={GEMINI_MODEL} reviewer={'ON' if REVIEWER_ENABLED else 'OFF'}")
 
         for i, (slug, title, keyword, fmt) in enumerate(topics, 1):
             if slug in used_slugs:
