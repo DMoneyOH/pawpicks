@@ -962,11 +962,18 @@ def main() -> None:
                 
                 prompt  = make_prompt(title, keyword, slug, fmt, product, related_url, related_anchor)
                 
-                # Inject alternatives into roundup prompt
+                # Inject alternatives into roundup prompt with explicit count constraint
                 if alternatives_text:
-                    prompt = prompt.replace("{{ALTERNATIVE_PRODUCTS}}", alternatives_text)
+                    alt_count = len([a for a in alternatives_text.split(";") if a.strip()])
+                    alt_constraint = (
+                        f"EXACTLY {alt_count} alternative product(s) listed below. "
+                        f"Use ONLY these {alt_count} product(s). Do NOT add, invent, or substitute any others.
+"
+                        f"{alternatives_text}"
+                    )
+                    prompt = prompt.replace("{{ALTERNATIVE_PRODUCTS}}", alt_constraint)
                 else:
-                    prompt = prompt.replace("{{ALTERNATIVE_PRODUCTS}}", "(Search unavailable - use well-known brands)")
+                    prompt = prompt.replace("{{ALTERNATIVE_PRODUCTS}}", "EXACTLY 3 alternatives -- use well-known brands you are confident exist. Do not fabricate products.")
                 
                 content = call_generator(prompt, groq_key)
                 log(f"  [timing] generate: {time.monotonic()-_t0:.1f}s")
@@ -993,7 +1000,7 @@ def main() -> None:
                     log(f"  HOLD {slug} -- quality check failed, GitHub issue created")
                     held += 1; continue
 
-                fname = f"{today}-{slugify(slug)}.md"
+                fname = f"DRAFT-{slugify(slug)}.md"  # Stage 2 dates on publish
                 fpath = POSTS_DIR / fname
                 fm    = front_matter(title, keyword, product.get("affiliate_url", ""),
                                      slug, species, category, pin_desc,

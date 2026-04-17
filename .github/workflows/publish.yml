@@ -80,7 +80,12 @@ jobs:
           SLUGS=()
           for p in "${SELECTED[@]}"; do
             fname=$(basename "$p" .md)
-            slug=$(echo "$fname" | cut -d'-' -f4-)
+            # Handle both DRAFT-slug and YYYY-MM-DD-slug filenames
+            if [[ "$fname" == DRAFT-* ]]; then
+              slug="${fname#DRAFT-}"
+            else
+              slug=$(echo "$fname" | cut -d'-' -f4-)
+            fi
             SLUGS+=("$slug")
             new_path="_posts/${TODAY}-${slug}.md"
             [ "$p" != "$new_path" ] && mv "$p" "$new_path" && echo "  DATED: $p -> $new_path"
