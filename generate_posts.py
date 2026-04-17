@@ -98,8 +98,8 @@ SLUG_CATEGORIES = {
     "best-cat-carrier-travel":          "cat-carriers",
 }
 
-# Topical sheet map for articles 1-10 only (11+ use products.json topical_sheet field)
-SLUG_TO_TOPICAL_SHEET_LEGACY = {
+# Permanent -- covers articles 1-10 which predate products.json. Do not delete.
+SLUG_TO_TOPICAL_SHEET_STATIC = {
     "best-dog-collars-small-breeds":    "HAPPYPET_SHEET_ID_TOYS",
     "best-dog-toys-aggressive-chewers": "HAPPYPET_SHEET_ID_TOYS",
     "best-no-pull-dog-harness":         "HAPPYPET_SHEET_ID_TOYS",
@@ -830,7 +830,7 @@ def append_to_sheet(title, article_url, description, image_url, species, slug, t
             targets.append(("Dogs", dog_id))
         if species in ("cat", "both") and cat_id:
             targets.append(("Cats", cat_id))
-        sheet_key = topical_sheet_key or SLUG_TO_TOPICAL_SHEET_LEGACY.get(slug)
+        sheet_key = topical_sheet_key or SLUG_TO_TOPICAL_SHEET_STATIC.get(slug)
         if sheet_key:
             tid = os.getenv(sheet_key)
             if tid:
@@ -846,6 +846,12 @@ def main() -> None:
     # Load .env first -- local runs need this; GHA already has env vars from secrets
     if DOTENV_AVAILABLE:
         load_dotenv(Path.home() / ".env")
+
+    # Reduce inter-article delay on multi-article runs to stay within Stage 1 timeout
+    global INTER_DELAY
+    if int(os.environ.get("MAX_ARTICLES", "1")) > 1:
+        INTER_DELAY = 120
+        log("Multi-article run detected -- INTER_DELAY reduced to 120s")
 
     groq_key = os.environ.get("GROQ_API_KEY", "").strip()
 
@@ -910,6 +916,7 @@ def main() -> None:
 
             log(f"  Product: {product['name']}")
             log(f"WRITE [{i}/{len(topics)}] [{fmt}] {title}")
+            _t0 = time.monotonic()
             time.sleep(RPM_SLEEP)
 
             # Dynamic internal link resolved from live _posts/
@@ -938,6 +945,7 @@ def main() -> None:
                     prompt = prompt.replace("{{ALTERNATIVE_PRODUCTS}}", "(Search unavailable - use well-known brands)")
                 
                 content = call_generator(prompt, groq_key)
+                log(f"  [timing] generate: {time.monotonic()-_t0:.1f}s")
 
                 pin_desc = f"{title} - expert reviews and buying guide."
                 if content.startswith("PIN_DESC:"):
@@ -951,9 +959,11 @@ def main() -> None:
                 # Fact-check: strip fabricated stats from alternative product sections (roundups only)
                 if fmt == "roundup":
                     content = fact_check_alternatives(content, product.get("name", ""), groq_key)
+                    log(f"  [timing] fact-check: {time.monotonic()-_t0:.1f}s")
 
                 time.sleep(RPM_SLEEP)
                 content, review_passed, review_flags = review_and_rewrite(title, keyword, content, groq_key)
+                log(f"  [timing] review: {time.monotonic()-_t0:.1f}s")
                 if not review_passed:
                     create_github_issue(title, slug, review_flags)
                     log(f"  HOLD {slug} -- quality check failed, GitHub issue created")
@@ -965,7 +975,7 @@ def main() -> None:
                                      slug, species, category, pin_desc,
                                      product.get("image", ""))
                 fpath.write_text(fm + "\n" + content, encoding="utf-8")
-                log(f"  SAVED {fname} ({fpath.stat().st_size} bytes)")
+                log(f"  SAVED {fname} ({fpath.stat().st_size} bytes) -- total: {time.monotonic()-_t0:.1f}s")
 
                 article_url = build_url(slug, utm=True)
                 pin_url     = product.get("image", "")
