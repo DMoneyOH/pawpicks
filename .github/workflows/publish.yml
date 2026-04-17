@@ -184,6 +184,19 @@ jobs:
         run: |
           python3 post_pins.py --slugs "${{ steps.stage.outputs.slugs }}"
 
+      - name: Post pins via IFTTT Maker
+        if: steps.stage.outputs.nothing_to_publish == 'false' && steps.build_poll.outputs.build_ok == 'true'
+        env:
+          IFTTT_MAKER_KEY:          ${{ secrets.IFTTT_MAKER_KEY }}
+          HAPPYPET_SHEET_ID_DOGS:   ${{ secrets.HAPPYPET_SHEET_ID_DOGS }}
+          HAPPYPET_SHEET_ID_CATS:   ${{ secrets.HAPPYPET_SHEET_ID_CATS }}
+          HAPPYPET_SHEET_ID_HOME:   ${{ secrets.HAPPYPET_SHEET_ID_HOME }}
+          HAPPYPET_SHEET_ID_FOOD:   ${{ secrets.HAPPYPET_SHEET_ID_FOOD }}
+          HAPPYPET_SHEET_ID_TOYS:   ${{ secrets.HAPPYPET_SHEET_ID_TOYS }}
+          HAPPYPET_SHEET_ID_HEALTH: ${{ secrets.HAPPYPET_SHEET_ID_HEALTH }}
+        run: |
+          python3 post_pins.py --slugs "${{ steps.stage.outputs.slugs }}"
+
       - name: Queue low — create GitHub issue
         if: steps.stage.outputs.nothing_to_publish == 'false' && steps.build_poll.outputs.build_ok == 'true' && fromJSON(steps.stage.outputs.remaining) <= 3
         env:

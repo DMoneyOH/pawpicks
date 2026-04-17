@@ -1,35 +1,27 @@
 #!/usr/bin/env python3
 """
-post_pins.py -- HappyPet Pinterest poster via IFTTT Maker webhooks
-Reads staged _pin_queue/*.json files, fires one Maker webhook per board target,
-then marks each slug as pinned in the Google Sheet (column F = YES).
+post_pins.py - HappyPet Pinterest poster via IFTTT Maker webhooks
+Sheet role: AUDIT TRAIL only. Rows appended by push_pins_to_sheets.py.
+post_pins.py marks column F = YES after successful pin.
 
 Board routing:
-  species=dog  (or both) -> happypet_pin_dogs
-  species=cat  (or both) -> happypet_pin_cats
-  topical=FOOD           -> happypet_pin_food
-  topical=HEALTH         -> happypet_pin_health
-  topical=HOME           -> happypet_pin_home
-  topical=TOYS           -> happypet_pin_toys
+  species=cat/both -> happypet_pin_cats
+  species=dog/both -> happypet_pin_dogs
+  FOOD   -> happypet_pin_food
+  HEALTH -> happypet_pin_health
+  HOME   -> happypet_pin_home
+  TOYS   -> happypet_pin_toys
 
-Maker webhook payload:
-  value1 = image_url (with ?v= cache-bust enforced)
-  value2 = title
-  value3 = source_url (article URL with UTM params)
+value1=image_url  value2="title | pin_desc"  value3=source_url
 
-Called by Stage 2 (publish.yml) after build confirmation.
-Manual: python3 post_pins.py --slugs slug1,slug2
-        python3 post_pins.py --dry-run
+Usage:
+  python3 post_pins.py
+  python3 post_pins.py --slugs a,b
+  python3 post_pins.py --dry-run
 """
 
-import argparse
-import datetime as _dt
-import json
-import os
-import sys
-import time
-import urllib.error
-import urllib.request
+import argparse, datetime as _dt, json, os, sys, time
+import urllib.error, urllib.parse, urllib.request
 from pathlib import Path
 
 REPO_DIR  = Path(__file__).parent.resolve()
@@ -50,14 +42,14 @@ BACKOFF_BASE = 15
 RPM_SLEEP    = 2
 
 
-def log(msg: str, level: str = "INFO") -> None:
+def log(msg, level="INFO"):
     line = f"{_dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} [POSTPINS] [{level}]  {msg}"
     print(line, flush=True)
     with LOG_PATH.open("a") as f:
         f.write(line + "\n")
 
 
-def load_env() -> None:
+def load_env():
     env_path = Path.home() / ".env"
     if env_path.exists():
         for line in env_path.read_text().splitlines():
@@ -67,7 +59,7 @@ def load_env() -> None:
                 os.environ.setdefault(k.strip(), v.strip())
 
 
-def http_post(url: str, payload: bytes, headers: dict, *, label: str) -> str:
+def http_post(url, payload, headers, *, label):
     for attempt in range(1, MAX_RETRIES + 1):
         try:
             req = urllib.request.Request(url, data=payload, headers=headers, method="POST")
@@ -77,7 +69,7 @@ def http_post(url: str, payload: bytes, headers: dict, *, label: str) -> str:
             body = exc.read().decode(errors="replace")
             if exc.code == 429:
                 wait = BACKOFF_BASE * (2 ** attempt)
-                log(f"  {label} 429 -- wait {wait}s (attempt {attempt}/{MAX_RETRIES})", "WARN")
+                log(f"  {label} 429 attempt {attempt}/{MAX_RETRIES} -- wait {wait}s", "WARN")
                 time.sleep(wait)
             else:
                 raise RuntimeError(f"{label} HTTP {exc.code}: {body[:200]}")
@@ -87,10 +79,12 @@ def http_post(url: str, payload: bytes, headers: dict, *, label: str) -> str:
     raise RuntimeError(f"{label} exhausted after {MAX_RETRIES} attempts")
 
 
-def fire_webhook(event: str, value1: str, value2: str, value3: str, maker_key: str) -> bool:
+def fire_webhook(event, value1, value2, value3, maker_key):
     url     = MAKER_URL.format(event=event, key=maker_key)
-    payload = json.dumps({"value1": value1, "value2": value2, "value3": value3}).encode()
-    headers = {"Content-Type": "application/json"}
+    payload = urllib.parse.urlencode({
+        "value1": value1, "value2": value2, "value3": value3,
+    }).encode()
+    headers = {"Content-Type": "application/x-www-form-urlencoded"}
     try:
         result = http_post(url, payload, headers, label=f"Maker:{event}")
         log(f"  FIRED {event} -- {result.strip()[:80]}")
@@ -100,21 +94,19 @@ def fire_webhook(event: str, value1: str, value2: str, value3: str, maker_key: s
         return False
 
 
-def resolve_events(species: str, topical_sheet: str) -> list:
+def resolve_events(species, topical_sheet):
     events = []
-    if species == "dog":
+    if species in ("dog", "both"):
         events.append("happypet_pin_dogs")
-    elif species == "cat":
+    if species in ("cat", "both"):
         events.append("happypet_pin_cats")
-    elif species == "both":
-        events.extend(["happypet_pin_dogs", "happypet_pin_cats"])
-    topical_event = TOPICAL_EVENT.get(topical_sheet)
-    if topical_event:
-        events.append(topical_event)
+    topical = TOPICAL_EVENT.get(topical_sheet)
+    if topical:
+        events.append(topical)
     return events
 
 
-def ensure_cache_bust(image_url: str) -> str:
+def ensure_cache_bust(image_url):
     if not image_url:
         return image_url
     if "?v=" not in image_url:
@@ -124,8 +116,8 @@ def ensure_cache_bust(image_url: str) -> str:
     return image_url
 
 
-def mark_pinned_in_sheet(slug: str, gc, sheet_ids: dict) -> None:
-    """Set column F = YES for rows matching this slug. Best-effort."""
+def mark_pinned_in_sheet(slug, gc, sheet_ids):
+    """Mark column F = YES for this slug. Audit trail only."""
     url_fragment = f"/{slug}/"
     for sheet_name, sheet_id in sheet_ids.items():
         if not sheet_id:
@@ -136,15 +128,15 @@ def mark_pinned_in_sheet(slug: str, gc, sheet_ids: dict) -> None:
             for i, row in enumerate(rows[1:], start=2):
                 if len(row) >= 2 and url_fragment in row[1]:
                     ws.update_cell(i, 6, "YES")
-                    log(f"  PINNED mark: {sheet_name} row {i}")
+                    log(f"  AUDIT: marked {sheet_name} row {i} = YES")
         except Exception as exc:
             log(f"  WARN: could not mark {sheet_name}: {exc}", "WARN")
 
 
-def main() -> None:
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--slugs",   default="", help="Comma-separated slugs (empty = all queued)")
-    parser.add_argument("--dry-run", action="store_true", help="Log targets without firing webhooks")
+    parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
     load_env()
@@ -169,24 +161,24 @@ def main() -> None:
         log("No queued pins found -- nothing to do")
         return
 
-    log(f"START -- {len(queue_files)} pin(s) to process{' [DRY RUN]' if args.dry_run else ''}")
+    log(f"START -- {len(queue_files)} pin(s){' [DRY RUN]' if args.dry_run else ''}")
 
-    gc        = None
+    gc = None
     sheet_ids = {}
     try:
         import gspread
         from google.oauth2.service_account import Credentials
         key_file = REPO_DIR / "happypet-sheets-key.json"
         if key_file.exists():
-            scopes    = ["https://www.googleapis.com/auth/spreadsheets"]
-            creds     = Credentials.from_service_account_file(str(key_file), scopes=scopes)
+            creds     = Credentials.from_service_account_file(str(key_file),
+                            scopes=["https://www.googleapis.com/auth/spreadsheets"])
             gc        = gspread.Client(auth=creds)
             sheet_ids = {k: v for k, v in os.environ.items() if k.startswith("HAPPYPET_SHEET_ID_")}
-            log("  gspread ready -- will mark column F=YES after pinning")
+            log("  gspread ready -- audit trail marking active")
         else:
-            log("  happypet-sheets-key.json not found -- sheet marking skipped", "WARN")
+            log("  happypet-sheets-key.json not found -- audit marking skipped", "WARN")
     except ImportError:
-        log("  gspread not installed -- sheet marking skipped", "WARN")
+        log("  gspread not installed -- audit marking skipped", "WARN")
 
     processed = 0
     failed    = 0
@@ -200,29 +192,33 @@ def main() -> None:
             data        = json.loads(qf.read_text())
             slug        = data.get("slug", qf.stem)
             title       = data.get("title", slug)
+            pin_desc    = data.get("description", title)
             article_url = data.get("article_url", "")
             image_url   = ensure_cache_bust(data.get("image_url", ""))
             species     = data.get("species", "both")
             topical     = data.get("topical_sheet", "")
 
+            value2 = f"{title} | {pin_desc}" if pin_desc and pin_desc != title else title
+
             events = resolve_events(species, topical)
             if not events:
-                log(f"WARN: no events resolved for {slug} (species={species}, topical={topical})", "WARN")
+                log(f"WARN: no events for {slug} (species={species} topical={topical})", "WARN")
                 failed += 1
                 continue
 
             log(f"PIN [{slug}] -> {events}")
-            log(f"  title: {title}")
             log(f"  image: {image_url[:80]}")
             log(f"  url:   {article_url[:80]}")
+            log(f"  v2:    {value2[:80]}")
 
             if args.dry_run:
-                log("  DRY RUN -- skipping webhook fire")
+                log("  DRY RUN -- skipping")
+                processed += 1
                 continue
 
             pin_ok = True
             for event in events:
-                ok = fire_webhook(event, image_url, title, article_url, maker_key)
+                ok = fire_webhook(event, image_url, value2, article_url, maker_key)
                 if not ok:
                     pin_ok = False
                 time.sleep(RPM_SLEEP)
@@ -232,9 +228,8 @@ def main() -> None:
                     mark_pinned_in_sheet(slug, gc, sheet_ids)
                 processed += 1
             else:
-                log(f"  PARTIAL/FULL failure for {slug} -- not moving to sent/", "WARN")
+                log(f"  PARTIAL/full failure for {slug}", "WARN")
                 failed += 1
-                continue
 
         except Exception as exc:
             log(f"FAIL: {qf.name} -- {exc}", "ERROR")
@@ -245,4 +240,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
