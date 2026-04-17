@@ -102,6 +102,7 @@ jobs:
         run: |
           COUNT="${{ steps.stage.outputs.publish_count }}"
           TODAY=$(date '+%Y-%m-%d')
+          git pull --rebase origin main
           git commit -m "auto: publish ${TODAY} [${COUNT} post(s)]"
           git push origin main
           echo "Push complete — waiting for Pages build..."

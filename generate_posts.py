@@ -861,8 +861,6 @@ def main() -> None:
     try:
         if not groq_key:
             log("GROQ_API_KEY not set", "ERROR"); return
-        if not groq_key:
-            log("GROQ_API_KEY not set -- reviewer will skip", "WARN")
 
         # Load products -- also registers categories into SLUG_CATEGORIES
         products = load_products()

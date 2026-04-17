@@ -111,6 +111,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "No support files changed — no commit needed"
           else
+            git pull --rebase origin main
             git commit -m "auto: stage support files $(date '+%Y-%m-%d')"
             git push origin main
             echo "Committed support files"

@@ -58,7 +58,7 @@
     "species": "dog",
     "category": "dog-health",
     "format": "roundup",
-    "topical_sheet": "HAPPYPET_SHEET_ID_FOOD",
+    "topical_sheet": "HAPPYPET_SHEET_ID_HEALTH",
     "stars": 4.7,
     "price": "34.91",
     "runners_up": "Glucosamine 250 Chews Turmeric & Omega3; VetIQ Glucosamine Hip & Joint 180ct; Nutramax Cosequin 60ct"
@@ -90,7 +90,7 @@
     "species": "dog",
     "category": "dog-gear",
     "format": "roundup",
-    "topical_sheet": "HAPPYPET_SHEET_ID_TOYS",
+    "topical_sheet": "HAPPYPET_SHEET_ID_HEALTH",
     "stars": 4.3,
     "price": "49.99",
     "runners_up": "ThunderShirt XL Platinum Sport; ThunderShirt Medium Classic Heather Gray"
@@ -106,7 +106,7 @@
     "species": "cat",
     "category": "cat-gear",
     "format": "roundup",
-    "topical_sheet": "HAPPYPET_SHEET_ID_TOYS",
+    "topical_sheet": "HAPPYPET_SHEET_ID_HOME",
     "stars": 4.7,
     "price": "24.99",
     "runners_up": "AMOSIJOY Cat Sill Perch Wood & Metal Frame; Zakkart Perch Hardwood Frame 24in; AMOSIJOY Cordless 4 Suction Cups"
@@ -122,7 +122,7 @@
     "species": "dog",
     "category": "dog-gear",
     "format": "roundup",
-    "topical_sheet": "HAPPYPET_SHEET_ID_TOYS",
+    "topical_sheet": "HAPPYPET_SHEET_ID_HOME",
     "stars": 4.6,
     "price": "37.79",
     "runners_up": "Texsens Bubble Backpack Pet Carrier; PetAmi Ventilated Hiking Backpack 18lbs"
@@ -138,7 +138,7 @@
     "species": "cat",
     "category": "cat-health",
     "format": "roundup",
-    "topical_sheet": "HAPPYPET_SHEET_ID_FOOD",
+    "topical_sheet": "HAPPYPET_SHEET_ID_HEALTH",
     "stars": 4.4,
     "price": "33.99",
     "runners_up": "Rescue Remedy Pet Dropper for Cats 10mL; Sentry Calming Chews for Cats 4oz"
@@ -154,7 +154,7 @@
     "species": "dog",
     "category": "dog-health",
     "format": "roundup",
-    "topical_sheet": "HAPPYPET_SHEET_ID_FOOD",
+    "topical_sheet": "HAPPYPET_SHEET_ID_HEALTH",
     "stars": 4.7,
     "price": "30.99",
     "runners_up": "Nutramax Proviable Probiotics 30 Capsules; Zesty Paws Probiotics DE111 Pumpkin 90ct; Probiotics Dogs Gut Health 120ct"
@@ -218,7 +218,7 @@
     "species": "dog",
     "category": "dog-gear",
     "format": "roundup",
-    "topical_sheet": "HAPPYPET_SHEET_ID_TOYS",
+    "topical_sheet": "HAPPYPET_SHEET_ID_HOME",
     "stars": 4.7,
     "price": "31.99",
     "runners_up": "VIVAGLORY Rip Stop Life Vest Small Multicolor; Outward Hound Granby Splash Orange Medium; Malier Shark Swimsuit Life Jacket"
@@ -266,7 +266,7 @@
     "species": "dog",
     "category": "dog-gear",
     "format": "roundup",
-    "topical_sheet": "HAPPYPET_SHEET_ID_TOYS",
+    "topical_sheet": "HAPPYPET_SHEET_ID_HOME",
     "stars": 4.8,
     "price": "34.99",
     "runners_up": "Vivifying Cooling Blanket Waterproof Reversible 30x40; Rywell Dog Cooling Mat 2.0 44x32"
