@@ -45,7 +45,7 @@ LOG_PATH.parent.mkdir(exist_ok=True)  # ensure LOGS/ exists
 # Rewriter:   Groq llama-4-scout (primary)         -> OpenRouter gpt-oss-120b:free (fallback)
 # Fact-check: Groq llama-3.1-8b-instant (primary)  -> Groq llama-3.3-70b-versatile (fallback)
 GEMINI_MODEL         = "gemini-2.5-flash"
-GEMINI_URL           = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+GEMINI_URL           = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
 GROQ_URL             = "https://api.groq.com/openai/v1/chat/completions"
 OPENROUTER_URL       = "https://openrouter.ai/api/v1/chat/completions"
 OR_GEN_MODEL         = "openai/gpt-oss-120b:free"
@@ -275,26 +275,26 @@ def call_generator(prompt: str, api_key: str) -> str:
     """
     or_gen_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
 
-    # --- Tier 1: Gemini 2.5 Flash ---
+    # --- Tier 1: Gemini 2.5 Flash (native endpoint) ---
+    # Uses x-goog-api-key header -- compatible with AQ. format AI Studio keys on free tier
+    native_url = f"{GEMINI_URL}?key={api_key}"
     payload = json.dumps({
-        "model": GEMINI_MODEL,
-        "messages": [{"role": "user", "content": prompt}],
-        "max_tokens": 8192,
-        "temperature": 0.75,
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {
+            "maxOutputTokens": 8192,
+            "temperature": 0.75,
+        },
     }).encode()
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {api_key}",
-    }
+    headers = {"Content-Type": "application/json"}
     try:
-        raw     = http_post(GEMINI_URL, payload, headers, label="Gemini-2.5-Flash",
-                            timeout=90, retries=2, backoff_base=60,
-                            passthrough_codes=frozenset({400, 401, 403, 404}))
-        data    = json.loads(raw)
-        content = data["choices"][0]["message"]["content"]
-        finish  = data["choices"][0].get("finish_reason", "?")
-        tokens  = data.get("usage", {}).get("completion_tokens", "?")
-        log(f"  API ok (Gemini 2.5 Flash): {len(content)} chars, {tokens} tokens, finish={finish}")
+        raw  = http_post(native_url, payload, headers, label="Gemini-2.5-Flash",
+                         timeout=90, retries=2, backoff_base=60,
+                         passthrough_codes=frozenset({400, 401, 403, 404}))
+        data = json.loads(raw)
+        content = data["candidates"][0]["content"]["parts"][0]["text"]
+        tokens  = data.get("usageMetadata", {}).get("candidatesTokenCount", "?")
+        finish  = data["candidates"][0].get("finishReason", "?")
+        log(f"  API ok (Gemini 2.5 Flash native): {len(content)} chars, {tokens} tokens, finish={finish}")
         return content
     except RuntimeError as exc:
         log(f"  Gemini failed: {exc} -- failing over to OpenRouter", "WARN")
