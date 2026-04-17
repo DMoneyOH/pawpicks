@@ -966,10 +966,10 @@ def main() -> None:
                 if alternatives_text:
                     alt_count = len([a for a in alternatives_text.split(";") if a.strip()])
                     alt_constraint = (
-                        f"EXACTLY {alt_count} alternative product(s) listed below. "
-                        f"Use ONLY these {alt_count} product(s). Do NOT add, invent, or substitute any others.
-"
-                        f"{alternatives_text}"
+                        "EXACTLY " + str(alt_count) + " alternative product(s) listed below. "
+                        "Use ONLY these " + str(alt_count) + " product(s). "
+                        "Do NOT add, invent, or substitute any others.\n"
+                        + alternatives_text
                     )
                     prompt = prompt.replace("{{ALTERNATIVE_PRODUCTS}}", alt_constraint)
                 else:
