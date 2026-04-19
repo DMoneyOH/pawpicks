@@ -46,15 +46,37 @@ def load_env():
 
 
 def retire_from_products(slug: str) -> int:
+    """Remove slug from products.json, archive to Brain. Returns remaining entry count."""
     p = REPO_DIR / 'products.json'
     if not p.exists():
         return 0
     products = json.loads(p.read_text())
-    before = len(products)
+    before   = len(products)
+    retired  = [e for e in products if e.get('topic') == slug]
     products = [e for e in products if e.get('topic') != slug]
     if len(products) < before:
         p.write_text(json.dumps(products, indent=2))
         log(f'  RETIRED: {slug} removed from products.json ({before} -> {len(products)} entries)')
+        try:
+            import sqlite3 as _sq
+            brain = Path.home() / 'vault' / 'maeve_brain.db'
+            if brain.exists() and retired:
+                e = retired[0]
+                con = _sq.connect(str(brain))
+                con.execute(
+                    """INSERT INTO products_archive
+                        (topic, title, keyword, asin, affiliate_url, species, category, price, stars, retired_at, post_slug)
+                        VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+                    (e.get('topic',''), e.get('title',''), e.get('keyword',''),
+                     e.get('asin',''), e.get('affiliate_url',''), e.get('species',''),
+                     e.get('category',''), e.get('price',''), e.get('stars'),
+                     _dt.datetime.utcnow().isoformat(), slug)
+                )
+                con.commit()
+                con.close()
+                log(f'  ARCHIVED: {slug} logged to Brain products_archive')
+        except Exception as arc_e:
+            log(f'  ARCHIVE WARN: {arc_e}', 'WARN')
     return len(products)
 
 
