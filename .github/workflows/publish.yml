@@ -2,7 +2,7 @@ name: Stage 2 — Publish Articles
 
 on:
   schedule:
-    # Mon + Thu 7:00 AM ET = 12:00 UTC (EDT, Apr-Nov)
+    # Mon + Thu 7:00 AM ET = 12:00 UTC (EDT, Apr-Nov) -- touched 2026-04-20 to re-register schedule
     - cron: '0 12 * * 1,4'
   workflow_dispatch:
     inputs:
