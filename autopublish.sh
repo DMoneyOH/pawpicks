@@ -88,7 +88,7 @@ while [[ $ELAPSED -lt $MAX_WAIT ]]; do
     sleep $POLL_INTERVAL
     ELAPSED=$((ELAPSED + POLL_INTERVAL))
 
-    STATUS=$("$GH" run list --repo DMoneyOH/pawpicks --limit 1 \
+    STATUS=$("$GH" run list --repo DMoneyOH/HappyPet --limit 1 \
         --json status,conclusion,displayTitle \
         --jq '.[0] | "\(.status)|\(.conclusion)"' 2>/dev/null || echo "error|error")
 
@@ -120,7 +120,7 @@ log "END autopublish"
 if [[ $REMAINING_AFTER -le 3 ]]; then
     log_warn "QUEUE LOW — only ${REMAINING_AFTER} unpublished post(s) remain in _posts/"
     "$GH" issue create \
-        --repo DMoneyOH/pawpicks \
+        --repo DMoneyOH/HappyPet \
         --title "⚠️ Queue low: ${REMAINING_AFTER} unpublished post(s) remaining" \
         --body "autopublish.sh queue alert ($(date '+%Y-%m-%d'))
 

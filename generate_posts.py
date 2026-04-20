@@ -62,7 +62,7 @@ INTER_DELAY          = 300
 RPM_SLEEP            = 8
 REVIEW_PRE_SLEEP     = 2
 MAX_RETRIES          = 2
-GITHUB_REPO      = "DMoneyOH/pawpicks"
+GITHUB_REPO      = "DMoneyOH/HappyPet"
 GITHUB_ASSIGNEE  = "DMoneyOH"
 SITE_BASE        = "https://happypetproductreviews.com"
 
