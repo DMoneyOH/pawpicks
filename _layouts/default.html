@@ -7,6 +7,10 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ site.baseurl }}/assets/css/style.css">
+  <link rel="icon" type="image/x-icon" href="{{ site.baseurl }}/favicon.ico">
+  <link rel="icon" type="image/png" sizes="32x32" href="{{ site.baseurl }}/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="{{ site.baseurl }}/favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="{{ site.baseurl }}/apple-touch-icon.png">
   {% seo title=false %}
   <title>{% if page.title %}{{ page.title }} | {{ site.title }}{% else %}{{ site.title }}{% endif %}</title>
   <link rel="canonical" href="{{ page.url | absolute_url }}">
@@ -26,7 +30,7 @@
   <header class="site-header">
     <div class="header-inner">
       <a href="{{ site.baseurl }}/" class="site-logo">
-        <span class="logo-paw">🐾</span>
+        <img src="{{ site.baseurl }}/assets/images/pawprint-nav.png" alt="Happy Pet" class="logo-paw" width="36" height="36" loading="eager">
         <span class="logo-text">Happy Pet Product Reviews</span>
       </a>
       <nav class="site-nav">
@@ -49,7 +53,7 @@
   <footer class="site-footer">
     <div class="footer-inner">
       <div class="footer-brand">
-        <span class="logo-text">🐾 Happy Pet Product Reviews</span>
+        <span class="logo-text"><img src="{{ site.baseurl }}/assets/images/pawprint-nav.png" alt="" width="20" height="20" loading="lazy" style="vertical-align:middle;margin-right:.35rem;border-radius:4px;"> Happy Pet Product Reviews</span>
         <p>In-depth pet product reviews that cut through the noise — because your happy pet deserves the best.</p>
       </div>
       <div class="footer-links">
