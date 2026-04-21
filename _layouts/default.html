@@ -13,6 +13,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="{{ site.baseurl }}/apple-touch-icon.png">
   {% seo title=false %}
   <title>{% if page.title %}{{ page.title }} | {{ site.title }}{% else %}{{ site.title }}{% endif %}</title>
+  <meta name="description" content="{{ page.description | default: site.description }}">
   <!-- Open Graph -->
   <meta property="og:title" content="{{ page.title | default: site.title }}">
   <meta property="og:description" content="{{ page.description | default: site.description }}">
@@ -20,6 +21,8 @@
   <meta property="og:url" content="{{ page.url | absolute_url }}">
   <meta property="og:type" content="{% if page.title %}article{% else %}website{% endif %}">
   <meta property="og:site_name" content="{{ site.title }}">
+  <meta property="fb:app_id" content="2351987968546164">
+  <meta property="fb:app_id" content="2351987968546164">
   <link rel="canonical" href="{{ page.url | absolute_url }}">
   <!-- Google tag (gtag.js) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-GK8XLS4J80"></script>
