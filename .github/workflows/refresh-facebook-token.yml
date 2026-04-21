@@ -1,40 +1,45 @@
-name: Refresh Facebook Page Token
+name: Facebook Token Health Check
 
 on:
   schedule:
     - cron: '0 10 1 * *'  # 1st of every month at 10:00 AM UTC
-  workflow_dispatch:        # manual trigger as backup
+  workflow_dispatch:        # manual trigger
 
 jobs:
-  refresh-token:
+  token-health-check:
     runs-on: ubuntu-latest
     steps:
-      - name: Exchange for fresh 60-day token
-        id: refresh
+      - name: Validate Facebook Page Token
         run: |
-          RESPONSE=$(curl -s "https://graph.facebook.com/oauth/access_token?grant_type=fb_exchange_token&client_id=${{ secrets.FACEBOOK_APP_ID }}&client_secret=${{ secrets.FACEBOOK_APP_SECRET }}&fb_exchange_token=${{ secrets.FACEBOOK_PAGE_TOKEN }}")
+          RESPONSE=$(curl -s "https://graph.facebook.com/debug_token?input_token=${{ secrets.FACEBOOK_PAGE_TOKEN }}&access_token=${{ secrets.FACEBOOK_PAGE_TOKEN }}")
+
+          IS_VALID=$(echo $RESPONSE | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('data',{}).get('is_valid',''))" 2>/dev/null || echo "")
+          EXPIRES_AT=$(echo $RESPONSE | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('data',{}).get('expires_at',''))" 2>/dev/null || echo "")
+          TOKEN_TYPE=$(echo $RESPONSE | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('data',{}).get('type',''))" 2>/dev/null || echo "")
           ERROR=$(echo $RESPONSE | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('error',{}).get('message',''))" 2>/dev/null || echo "")
+
+          echo "Token type   : $TOKEN_TYPE"
+          echo "Is valid     : $IS_VALID"
+          echo "Expires at   : $EXPIRES_AT"
+
           if [ -n "$ERROR" ]; then
-            echo "Facebook API error: $ERROR"
-            echo "Full response: $RESPONSE"
+            echo "ERROR: Facebook API returned an error: $ERROR"
             exit 1
           fi
-          NEW_TOKEN=$(echo $RESPONSE | python3 -c "import sys,json; d=json.load(sys.stdin); t=d.get('access_token',''); print(t) if t else (sys.exit('access_token missing from response: ' + str(d)))")
-          echo "::add-mask::$NEW_TOKEN"
-          echo "new_token=$NEW_TOKEN" >> $GITHUB_OUTPUT
 
-      - name: Update FACEBOOK_PAGE_TOKEN secret
-        run: |
-          gh secret set FACEBOOK_PAGE_TOKEN --body "${{ steps.refresh.outputs.new_token }}" --repo ${{ github.repository }}
-        env:
-          GH_TOKEN: ${{ secrets.GH_PAT }}
-
-      - name: Verify new token
-        run: |
-          VERIFY=$(curl -s "https://graph.facebook.com/me?access_token=${{ steps.refresh.outputs.new_token }}&fields=name")
-          NAME=$(echo $VERIFY | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('name', ''))" 2>/dev/null || echo "")
-          if [ -z "$NAME" ]; then
-            echo "Token verification failed: $VERIFY"
+          if [ "$IS_VALID" != "True" ]; then
+            echo "ERROR: Token is no longer valid. Regenerate via /me/accounts and update FACEBOOK_PAGE_TOKEN secret."
             exit 1
           fi
-          echo "Token valid for: $NAME"
+
+          if [ "$TOKEN_TYPE" != "PAGE" ]; then
+            echo "ERROR: Token type is '$TOKEN_TYPE', expected PAGE. Replace FACEBOOK_PAGE_TOKEN with a proper Page token."
+            exit 1
+          fi
+
+          if [ "$EXPIRES_AT" != "0" ]; then
+            echo "WARNING: Token has an expiry ($EXPIRES_AT). Should be 0 for a permanent Page token."
+            exit 1
+          fi
+
+          echo "PASS: Page token is valid, permanent, and correctly typed."
