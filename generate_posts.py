@@ -818,7 +818,7 @@ def create_github_issue(title: str, slug: str, flags: list) -> None:
 
 
 def front_matter(title: str, keyword: str, affiliate_url: str, slug: str,
-                 species: str, category: str, description: str, image: str = "") -> str:
+                 species: str, category: str, description: str, image: str = "", pin_image: str = "") -> str:
     today = datetime.date.today().isoformat()
     fm = (
         f'---\nlayout: post\ntitle: "{title}"\ndate: {today}\n'
@@ -829,6 +829,8 @@ def front_matter(title: str, keyword: str, affiliate_url: str, slug: str,
         fm += f'affiliate_url: "{affiliate_url}"\n'
     if image:
         fm += f'image: "{image}"\n'
+    if pin_image:
+        fm += f'pin_image: "{pin_image}"\n'
     fm += '---\n'
     return fm
 
@@ -1004,7 +1006,8 @@ def main() -> None:
                 fpath = POSTS_DIR / fname
                 fm    = front_matter(title, keyword, product.get("affiliate_url", ""),
                                      slug, species, category, pin_desc,
-                                     product.get("image", ""))
+                                     product.get("image", ""),
+                                     build_pin_image_url(slug))
                 fpath.write_text(fm + "\n" + content, encoding="utf-8")
                 log(f"  SAVED {fname} ({fpath.stat().st_size} bytes) -- total: {time.monotonic()-_t0:.1f}s")
 

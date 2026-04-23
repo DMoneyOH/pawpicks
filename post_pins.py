@@ -103,6 +103,9 @@ def resolve_events(species, topical_sheet):
     topical = TOPICAL_EVENT.get(topical_sheet)
     if topical:
         events.append(topical)
+    if not events:
+        log(f"  WARN: could not resolve events for species='{species}' topical='{topical_sheet}' -- falling back to happypet_pin_dogs", "WARN")
+        events.append("happypet_pin_dogs")
     return events
 
 
