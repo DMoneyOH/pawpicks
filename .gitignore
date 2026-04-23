@@ -34,3 +34,6 @@ autopublish.log
 LOGS/
 setup_gh_secrets.sh
 INFRA.md
+
+# Local dev scripts (not for production)
+scripts/

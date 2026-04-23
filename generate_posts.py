@@ -8,7 +8,7 @@ Happy Pet Product Reviews Generator v21.3 — Fact-check token fix: 1500 char in
 - load_dotenv at top of main() for local runs; GHA uses env secrets directly
 - Reviewer JSON parse hardened; content truncated before review prompt
 - Slug-based dedup across all dates
-- Pin queue staged for autopublish.sh
+- Pin queue staged for publish.yml -> post_pins.py
 - DONE log includes held count
 """
 import os, re, json, datetime, time, urllib.request, urllib.error, urllib.parse, subprocess
@@ -1020,7 +1020,7 @@ def main() -> None:
                     except Exception as pe:
                         log_pin(f"  pin generation failed: {pe}", "WARN")
 
-                # Stage pin data for autopublish.sh -> push_pins_to_sheets.py
+                # Stage pin data for publish.yml -> post_pins.py -> push_pins_to_sheets.py
                 pin_queue_dir = REPO_DIR / "_pin_queue"
                 pin_queue_dir.mkdir(exist_ok=True)
                 pin_data = {
