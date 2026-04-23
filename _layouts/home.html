@@ -121,7 +121,7 @@ layout: default
           <span class="card-emoji" data-title="{{ post.title | downcase }}"></span>
         </div>
         <h2 class="card-title">{{ post.title }}</h2>
-        <p class="card-excerpt">{{ post.excerpt | strip_html | truncate: 115 }}</p>
+        <p class="card-excerpt">{{ post.excerpt | strip_html | truncatewords: 20 }}</p>
         <div class="card-footer">
           <time class="card-date">{{ post.date | date: "%b %d, %Y" }}</time>
           <span class="card-read">Read Review →</span>

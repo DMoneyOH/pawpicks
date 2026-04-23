@@ -5,6 +5,7 @@ url: 'https://happypetproductreviews.com'
 author: Happy Pet Product Reviews Team
 email: 'hello@happypetproductreviews.com'
 show_excerpts: true
+excerpt_separator: "\n\n"
 permalink: /:categories/:title/
 plugins:
   - jekyll-feed
