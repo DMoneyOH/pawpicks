@@ -133,29 +133,32 @@ layout: default
   </div>
 </section>
 
+<div id="load-more-wrap" style="text-align:center;margin:2rem 0;display:none;">
+  <button id="load-more-btn" class="btn-secondary">Load more reviews ↓</button>
+</div>
+
 <script>
 (function(){
-  /* ── Topic-based emoji map — most specific match wins ── */
+  var PAGE_SIZE = 12;
+
   var EMOJI_MAP = [
-    // Specific products first
-    {k:['collar','collars'],         e:'🏷️'},
-    {k:['harness'],                  e:'🦺'},
-    {k:['leash'],                    e:'🦮'},
+    {k:['collar','collars'],          e:'🏷️'},
+    {k:['harness'],                   e:'🦺'},
+    {k:['leash'],                     e:'🦮'},
     {k:['toy','toys','chew','chewer'],e:'🎾'},
-    {k:['bed','beds'],               e:'🛏️'},
-    {k:['crate','crates'],           e:'🏠'},
-    {k:['litter','litter box'],      e:'🧹'},
-    {k:['scratch','scratcher'],      e:'🪵'},
+    {k:['bed','beds'],                e:'🛏️'},
+    {k:['crate','crates'],            e:'🏠'},
+    {k:['litter','litter box'],       e:'🧹'},
+    {k:['scratch','scratcher'],       e:'🪵'},
     {k:['food','treat','treats','nutrition','diet'],e:'🍖'},
     {k:['feeder','feeding','bowl','bowls'],e:'🥣'},
-    {k:['water','fountain'],         e:'💧'},
+    {k:['water','fountain'],          e:'💧'},
     {k:['carrier','carriers','travel'],e:'✈️'},
     {k:['grooming','brush','brushing','shampoo'],e:'🪮'},
-    {k:['training','pad','pads'],    e:'📋'},
+    {k:['training','pad','pads'],     e:'📋'},
     {k:['health','supplement','vitamin'],e:'💊'},
-    {k:['camera','monitor'],         e:'📷'},
-    {k:['stroller','pram'],          e:'🛺'},
-    // Species fallbacks
+    {k:['camera','monitor'],          e:'📷'},
+    {k:['stroller','pram'],           e:'🛺'},
     {k:['cat','cats','kitten','feline'],e:'🐈'},
     {k:['dog','dogs','puppy','canine'], e:'🐕'},
   ];
@@ -168,32 +171,59 @@ layout: default
         if (t.indexOf(entry.k[j]) !== -1) return entry.e;
       }
     }
-    return '🐾'; // final fallback
+    return '🐾';
   }
 
-  /* Fill card emojis */
   document.querySelectorAll('.card-emoji[data-title]').forEach(function(el){
     el.textContent = getEmoji(el.dataset.title);
   });
 
-  /* ── Category pill filter ── */
-  var pills   = document.querySelectorAll('.cat-pill');
-  var cards   = document.querySelectorAll('.post-card');
-  var countEl = document.getElementById('review-count');
-  pills.forEach(function(pill){
-    pill.addEventListener('click', function(){
-      pills.forEach(function(p){ p.classList.remove('active'); });
+  var pills      = document.querySelectorAll('.cat-pill');
+  var allCards   = Array.prototype.slice.call(document.querySelectorAll('.post-card'));
+  var countEl    = document.getElementById('review-count');
+  var loadWrap   = document.getElementById('load-more-wrap');
+  var loadBtn    = document.getElementById('load-more-btn');
+  var activeFilter = 'all';
+  var visibleCount = 0;
+
+  function getMatchingCards(filter) {
+    return allCards.filter(function(card) {
+      var cardFilters = (card.dataset.filter || '').split(' ');
+      return filter === 'all' || cardFilters.indexOf(filter) !== -1;
+    });
+  }
+
+  function applyFilter(filter) {
+    activeFilter = filter;
+    visibleCount = 0;
+    var matching = getMatchingCards(filter);
+    allCards.forEach(function(card) { card.style.display = 'none'; });
+    var toShow = matching.slice(0, PAGE_SIZE);
+    toShow.forEach(function(card) { card.style.display = ''; visibleCount++; });
+    if (countEl) countEl.textContent = matching.length + ' review' + (matching.length !== 1 ? 's' : '');
+    if (loadWrap) loadWrap.style.display = matching.length > PAGE_SIZE ? '' : 'none';
+  }
+
+  function loadMore() {
+    var matching = getMatchingCards(activeFilter);
+    var hidden = matching.filter(function(card) { return card.style.display === 'none'; });
+    var toShow = hidden.slice(0, PAGE_SIZE);
+    toShow.forEach(function(card) { card.style.display = ''; visibleCount++; });
+    if (hidden.length <= PAGE_SIZE) {
+      loadWrap.style.display = 'none';
+    }
+  }
+
+  pills.forEach(function(pill) {
+    pill.addEventListener('click', function() {
+      pills.forEach(function(p) { p.classList.remove('active'); });
       pill.classList.add('active');
-      var f = pill.dataset.filter;
-      var visible = 0;
-      cards.forEach(function(card){
-        var cardFilters = (card.dataset.filter || '').split(' ');
-        var show = f === 'all' || cardFilters.indexOf(f) !== -1;
-        card.style.display = show ? '' : 'none';
-        if(show) visible++;
-      });
-      if(countEl) countEl.textContent = visible + ' review' + (visible !== 1 ? 's' : '');
+      applyFilter(pill.dataset.filter);
     });
   });
+
+  if (loadBtn) loadBtn.addEventListener('click', loadMore);
+
+  applyFilter('all');
 })();
 </script>

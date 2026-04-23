@@ -43,3 +43,34 @@ jobs:
           fi
 
           echo "PASS: Page token is valid, permanent, and correctly typed."
+
+      - name: Alert on token failure
+        if: failure()
+        env:
+          GMAIL_SMTP_USER:    ${{ secrets.GMAIL_SMTP_USER }}
+          GMAIL_ACCOUNT:      ${{ secrets.GMAIL_ACCOUNT }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+        run: |
+          python3 -c "
+          import smtplib, os
+          from email.mime.text import MIMEText
+          smtp_user  = os.environ.get('GMAIL_SMTP_USER', '')
+          smtp_login = os.environ.get('GMAIL_ACCOUNT', '')
+          smtp_pass  = os.environ.get('GMAIL_APP_PASSWORD', '')
+          if not smtp_pass:
+              print('GMAIL_APP_PASSWORD not set -- skipping alert')
+              exit(0)
+          body = 'Facebook Page token health check FAILED.\n\nAction required: check the token status and regenerate via Graph API Explorer (/me/accounts) if invalid, then update the FACEBOOK_PAGE_TOKEN secret in GitHub.\n\nRun: https://github.com/DMoneyOH/HappyPet/actions/workflows/refresh-facebook-token.yml'
+          msg = MIMEText(body)
+          msg['Subject'] = '[HappyPet] Facebook token health check failed'
+          msg['From'] = smtp_user
+          msg['To'] = 'hello@happypetproductreviews.com'
+          try:
+              with smtplib.SMTP('smtp.gmail.com', 587) as s:
+                  s.starttls()
+                  s.login(smtp_login, smtp_pass)
+                  s.sendmail(smtp_user, ['hello@happypetproductreviews.com'], msg.as_string())
+              print('Alert email sent')
+          except Exception as e:
+              print(f'Alert email failed: {e}')
+          "
