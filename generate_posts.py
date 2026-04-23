@@ -476,7 +476,7 @@ STRUCTURE: Opening (100+ words) | Product Overview (H2) | What We Like (H2, 4-5 
 
 {verified_block}
 STRUCTURE:
-  Opening (100+ words)
+  Opening (100+ words, NO heading — begin prose directly)
   Quick Picks (H2)
 
   Featured Pick: {product_name} (H3, 80-100 words)
@@ -501,10 +501,10 @@ STRUCTURE:
     - Do NOT include a ratings column — only use verified ratings from product data above
 
   Buying Guide (H2, 150+ words)
-  Closing (80+ words with affiliate link per LINKING RULE above)"""
+  Closing (80+ words with affiliate link per LINKING RULE above, NO heading — begin prose directly)"""
     else:
         structure = f"""ARTICLE FORMAT: Buying guide -- {title}
-STRUCTURE: Opening (100+ words) | What to Look For (H2, 5-6 key factors) | Our Top Pick {product_name} (H2, 100 words, affiliate link) | Common Mistakes to Avoid (H2, 3-4 pitfalls) | FAQ (H2, 4-5 real questions) | Closing (80+ words with affiliate link)"""
+STRUCTURE: Opening (100+ words, NO heading — begin prose directly) | What to Look For (H2, 5-6 key factors) | Our Top Pick {product_name} (H2, 100 words, affiliate link) | Common Mistakes to Avoid (H2, 3-4 pitfalls) | FAQ (H2, 4-5 real questions) | Closing (80+ words with affiliate link, NO heading — begin prose directly)"""
     return f"""You are a senior writer for Happy Pet Product Reviews, a trusted budget-focused pet product review blog.
 
 Write a complete, publish-ready blog post. Title: "{title}". Focus keyword: "{keyword}".
@@ -521,7 +521,7 @@ WRITING STYLE:
 - MINIMIZE stock phrases -- avoid where possible: "delve", "it's worth noting", "in conclusion", "look no further", "game-changer", "comprehensive guide", "navigate", "we've all been there", "we've been there", "there's nothing quite like", "we've got you covered", "for good reason", "without breaking the bank", "in today's world", "when it comes to", "at the end of the day", "we all know", "as pet owners", "as dog owners", "as cat owners", "furry friend", "furry companion"
 - Write warmly but avoid stock pet-blog phrases that signal AI copy: never use "paw-some", "put our paws", "tail wagging" as metaphor, "furry family member", "fur baby", "pet parent", or "furry friend". Use "dog owner" or "cat owner" instead of "pet parent". Natural warmth through genuine voice is encouraged -- forced wordplay is not.
 - FACTS: Only state product specs you are certain of from the product listing. If unsure, hedge with: "many owners report...", "tends to...", or "according to Amazon reviews...". Never invent dimensions, materials, weight, compatibility claims, percentages, statistics, or any number you were not given. Do NOT fabricate reviewer percentages like "85% of owners said..." -- if you don't have the real number, don't include one.
-- SECTION HEADINGS: Never start a section with "In conclusion" or "In summary". Use a specific, descriptive heading instead.
+- SECTION HEADINGS: Never start a section with "In conclusion" or "In summary". Use a specific, descriptive heading instead. Never use "Opening" or "Closing" as headings — these are unheaded prose sections.
 - OPENING: If it makes sense for the article topic, open with a specific relatable moment a dog or cat owner would instantly recognize. Show, don't tell. Be SPECIFIC -- name a real scenario, not a generic one.
   Good examples: "My dog chewed through a couch cushion on a 45-minute Zoom call." / "Our cat knocked the water bowl over three times in one week." / "I spent $40 on a toy my dog sniffed once and walked away from."
   Bad examples (NEVER write openings like these): "We've all been there - [generic scenario]..." (cliché opener) / "As a pet owner, you know how important it is to..." (filler) / "Dogs need mental stimulation to stay happy and healthy." (generic) / "Standing in the kitchen when suddenly..." (AI-template setup) / Any opening that starts with a vague scenario followed by a product pitch.
