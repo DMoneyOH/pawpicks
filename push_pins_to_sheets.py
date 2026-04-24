@@ -61,8 +61,11 @@ def retire_from_products(slug: str) -> int:
             import sqlite3 as _sq
             brain = Path.home() / 'vault' / 'maeve_brain.db'
             if brain.exists() and retired:
-                e = retired[0]
+                e   = retired[0]
+                now = _dt.datetime.now(_dt.timezone.utc).isoformat()
                 con = _sq.connect(str(brain))
+
+                # Archive retirement record
                 con.execute(
                     """INSERT INTO products_archive
                         (topic, title, keyword, asin, affiliate_url, species, category, price, stars, retired_at, post_slug, project_name)
@@ -70,11 +73,32 @@ def retire_from_products(slug: str) -> int:
                     (e.get('topic',''), e.get('title',''), e.get('keyword',''),
                      e.get('asin',''), e.get('affiliate_url',''), e.get('species',''),
                      e.get('category',''), e.get('price',''), e.get('stars'),
-                     _dt.datetime.now(_dt.timezone.utc).isoformat(), slug, 'HappyPet')
+                     now, slug, 'HappyPet')
                 )
+
+                # Resolve published_at from dated _posts/ filename
+                pub_at = now  # fallback: retirement time if post file not found
+                for md in (REPO_DIR / '_posts').glob(f'2*-{slug}.md'):
+                    parts = md.stem.split('-', 3)
+                    if len(parts) == 4:
+                        pub_at = '-'.join(parts[:3]) + 'T12:00:00+00:00'
+                        break
+
+                # Write publication record (INSERT OR IGNORE -- idempotent if already backfilled)
+                con.execute(
+                    """INSERT OR IGNORE INTO published_articles
+                        (slug, title, category, species, asin, affiliate_url, product_name,
+                         keyword, price, stars, published_at, project_name)
+                        VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+                    (slug, e.get('title',''), e.get('category',''), e.get('species',''),
+                     e.get('asin',''), e.get('affiliate_url',''), e.get('name',''),
+                     e.get('keyword',''), e.get('price',''), e.get('stars'),
+                     pub_at, 'HappyPet')
+                )
+
                 con.commit()
                 con.close()
-                log(f'  ARCHIVED: {slug} logged to Brain products_archive')
+                log(f'  ARCHIVED: {slug} logged to Brain products_archive + published_articles (pub={pub_at[:10]})')
         except Exception as arc_e:
             log(f'  ARCHIVE WARN: {arc_e}', 'WARN')
     return len(products)
