@@ -119,6 +119,21 @@ def ensure_cache_bust(image_url):
     return image_url
 
 
+def check_url_live(url: str, timeout: int = 8) -> bool:
+    """Return True if URL responds 200. Skips check if url is empty."""
+    if not url:
+        return False
+    try:
+        import urllib.request
+        req = urllib.request.Request(url, method="HEAD",
+                                     headers={"User-Agent": "HappyPetBot/1.0"})
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return r.status == 200
+    except Exception as e:
+        log(f"  WARN: URL check failed for {url[:60]} -- {e}", "WARN")
+        return False
+
+
 def mark_pinned_in_sheet(slug, gc, sheet_ids):
     """Mark column F = YES for this slug. Audit trail only."""
     url_fragment = f"/{slug}/"
@@ -217,6 +232,11 @@ def main():
             if args.dry_run:
                 log("  DRY RUN -- skipping")
                 processed += 1
+                continue
+
+            if not check_url_live(article_url):
+                log(f"  SKIP: article not live yet ({article_url[:60]})", "WARN")
+                failed += 1
                 continue
 
             pin_ok = True
