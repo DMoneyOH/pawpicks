@@ -66,9 +66,12 @@ RATING_RETRY_WAIT = 4    # seconds between 429 retries
 # Stripped when building fallback keyword variants
 STOP_WORDS = {
     "the", "a", "an", "and", "or", "for", "with", "in", "of", "to", "by",
-    "adult", "senior", "puppy", "kitten", "dog", "cat", "dogs", "cats",
-    "food", "recipe", "formula", "dry", "wet", "grain", "free",
+    "recipe", "formula", "grain", "free",
 }
+
+# Species/life-stage terms kept OUT of stop words -- they are critical disambiguators.
+# Stripping "kitten" causes puppy products to score equally, producing false positives.
+SPECIES_TERMS = {"dog", "dogs", "cat", "cats", "puppy", "kitten", "adult", "senior"}
 
 # Full category taxonomy — consumables get Chewy as primary link
 CONSUMABLE_CATEGORIES = {
