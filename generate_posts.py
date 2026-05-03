@@ -33,6 +33,12 @@ try:
 except ImportError:
     PIN_GEN_AVAILABLE = False
 
+try:
+    from chewy_lookup import lookup as chewy_lookup
+    CHEWY_LOOKUP_AVAILABLE = True
+except ImportError:
+    CHEWY_LOOKUP_AVAILABLE = False
+
 REPO_DIR  = Path(__file__).parent.resolve()
 POSTS_DIR = REPO_DIR / "_posts"
 LOG_PATH  = Path(__file__).parent / "LOGS" / f"HappyPet_{datetime.date.today().isoformat()}.log"
@@ -183,6 +189,64 @@ def build_pin_image_url(slug: str) -> str:
     """Always version-stamp pin image URLs to bust Pinterest CDN cache."""
     version = datetime.date.today().strftime("%Y%m%d")
     return f"{SITE_BASE}/assets/images/pins/{slug}.jpg?v={version}"
+
+
+def enrich_with_chewy(slug: str, product: dict) -> bool:
+    """
+    If chewy_url is not yet set on this product, call chewy_lookup and write
+    the result back into products.json. Returns True if products.json was updated.
+
+    Sentinel rules:
+      Full URL          -> written to chewy_url, button will render
+      "REVIEW:{url}"   -> logged as warning, chewy_url left null, no button
+      "REVIEW"         -> logged as warning, chewy_url left null, no button
+      None              -> credentials missing or error, chewy_url left null
+    """
+    if not CHEWY_LOOKUP_AVAILABLE:
+        return False
+
+    existing = product.get("chewy_url")
+    if existing and not str(existing).startswith("REVIEW"):
+        return False  # already have a confirmed URL
+
+    product_name = product.get("name", "")
+    if not product_name:
+        return False
+
+    log(f"  [chewy] Looking up: {product_name}")
+    try:
+        result = chewy_lookup(product_name)
+    except Exception as e:
+        log(f"  [chewy] Lookup error for {slug}: {e}", "WARN")
+        return False
+
+    url = result.get("chewy_url")
+    if not url or str(url).startswith("REVIEW"):
+        log(f"  [chewy] REVIEW sentinel for {slug} -- manual verification required, no button will render", "WARN")
+        return False
+
+    # Confirmed URL -- update the in-memory product dict and write back to products.json
+    product["chewy_url"]    = url
+    product["chewy_price"]  = result.get("chewy_price")
+    product["chewy_stock"]  = result.get("chewy_stock")
+    product["chewy_rating"] = result.get("chewy_rating")
+
+    json_path = REPO_DIR / "products.json"
+    try:
+        raw = json.loads(json_path.read_text())
+        for entry in raw:
+            if entry.get("topic") == slug:
+                entry["chewy_url"]    = url
+                entry["chewy_price"]  = result.get("chewy_price")
+                entry["chewy_stock"]  = result.get("chewy_stock")
+                entry["chewy_rating"] = result.get("chewy_rating")
+                break
+        json_path.write_text(json.dumps(raw, indent=2))
+        log(f"  [chewy] products.json updated for {slug}: {url[:60]}")
+        return True
+    except Exception as e:
+        log(f"  [chewy] Failed to write products.json for {slug}: {e}", "WARN")
+        return False
 
 
 def load_products() -> dict:
@@ -827,6 +891,8 @@ def front_matter(title: str, keyword: str, affiliate_url: str, slug: str,
     )
     if affiliate_url:
         fm += f'affiliate_url: "{affiliate_url}"\n'
+    if chewy_url and not chewy_url.startswith("REVIEW"):
+        fm += f'chewy_url: "{chewy_url}"\n'
     if image:
         fm += f'image: "{image}"\n'
     if pin_image:
@@ -941,6 +1007,7 @@ def main() -> None:
             topical_sheet_key = product.get("topical_sheet", "")
 
             log(f"  Product: {product['name']}")
+            enrich_with_chewy(slug, product)  # no-op if already set or creds missing
             log(f"WRITE [{i}/{len(topics)}] [{fmt}] {title}")
             _t0 = time.monotonic()
             time.sleep(RPM_SLEEP)
@@ -1007,7 +1074,8 @@ def main() -> None:
                 fm    = front_matter(title, keyword, product.get("affiliate_url", ""),
                                      slug, species, category, pin_desc,
                                      product.get("image", ""),
-                                     build_pin_image_url(slug))
+                                     build_pin_image_url(slug),
+                                     chewy_url=product.get("chewy_url") or "")
                 fpath.write_text(fm + "\n" + content, encoding="utf-8")
                 log(f"  SAVED {fname} ({fpath.stat().st_size} bytes) -- total: {time.monotonic()-_t0:.1f}s")
 
