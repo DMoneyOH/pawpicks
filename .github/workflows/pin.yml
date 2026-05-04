@@ -110,6 +110,8 @@ jobs:
       - name: Consume pending-slugs
         run: |
           PENDING="_pin_queue/.pending-slugs"
+          # Pull before staging -- git pull --rebase fails on dirty index
+          git pull --rebase origin main
           # Stage everything push_pins_to_sheets.py modified in the working tree:
           # products.json (retirement), _pin_queue/sent/ (moved files), LOGS/
           git add products.json _pin_queue/ LOGS/ 2>/dev/null || true
@@ -119,7 +121,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "Nothing staged -- no commit needed"
           else
-            git pull --rebase origin main
             git commit -m "chore: retire slug and consume pending-slugs after pin run"
             git push origin main
             echo "Committed and pushed cleanup"
