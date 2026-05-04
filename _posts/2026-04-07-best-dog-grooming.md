@@ -12,7 +12,7 @@ image: "https://images-na.ssl-images-amazon.com/images/P/B07MZDTG76.01.LZZZZZZZ.
 
 The most common grooming mistake isn't skipping baths, it's using the wrong brush. A slicker brush on a double-coated Husky moves surface hair around without touching the undercoat. A deshedding tool used on a Poodle can damage the curls. The tools matter, and they're not interchangeable.
 
-We've tested brushes, clippers, and deshedders across different coat types to put together recommendations that actually match the dog they're meant for. No single tool works for every breed, so this guide is organized around coat type rather than popularity rankings.
+Testing has covered brushes, clippers, and deshedders across different coat types to put together recommendations that actually match the dog they're meant for. No single tool works for every breed, so this guide is organized around coat type rather than popularity rankings.
 
 ## Quick Picks by Coat Type
 
