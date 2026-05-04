@@ -491,9 +491,10 @@ STRUCTURE:
   Opening (100+ words, NO heading — begin prose directly)
   Quick Picks (H2)
 
-  Featured Pick: {product_name} (H3, 80-100 words)
+  Featured Pick: {product_name} (H3, 150-200 words)
+    - Open with 2-3 sentences of genuine review — what makes this the top pick, specific real-world performance context
     - Reference the verified star rating and review count naturally in prose if available
-    - Pros bullet list: 3-4 genuine strengths
+    - Pros bullet list: 3-4 genuine strengths with brief explanation of each
     - Cons bullet list: 1-2 honest limitations
     - Include affiliate link per LINKING RULE above
     - Do not fabricate specs; hedge unverified claims ("many owners report..." / "tends to...")
@@ -507,12 +508,14 @@ STRUCTURE:
     - DO NOT fabricate review data like "88% of owners reported..." -- if you don't have the number, don't include one
     - Use ONLY the products listed above — do not add or invent others
 
+  Buying Guide (H2, 150+ words)
+
   Comparison Table (H2): Product | Best For | Price Range | Chew Time
+    - Place AFTER the Buying Guide — readers should understand the category before seeing the summary table
     - Price Range: use $, $$, $$$ only — do not invent specific dollar amounts for additional picks
     - Chew Time: Quick (under 5 min) / Moderate (5-15 min) / Long (15+ min) -- estimate based on chew density and product type. For non-consumable products, use a relevant attribute instead of Chew Time.
     - Do NOT include a ratings column — only use verified ratings from product data above
 
-  Buying Guide (H2, 150+ words)
   Closing (80+ words with affiliate link per LINKING RULE above, NO heading — begin prose directly)"""
     else:
         structure = f"""ARTICLE FORMAT: Buying guide -- {title}
@@ -538,7 +541,7 @@ WRITING STYLE:
   Good examples: "My dog chewed through a couch cushion on a 45-minute Zoom call." / "Our cat knocked the water bowl over three times in one week." / "I spent $40 on a toy my dog sniffed once and walked away from."
   Bad examples (NEVER write openings like these): "We've all been there - [generic scenario]..." (cliché opener) / "As a pet owner, you know how important it is to..." (filler) / "Dogs need mental stimulation to stay happy and healthy." (generic) / "Standing in the kitchen when suddenly..." (AI-template setup) / Any opening that starts with a vague scenario followed by a product pitch.
   If the article topic is purely practical (e.g. flea prevention, nutrition), a direct factual opening is fine -- do not force an anecdote.
-- Use "{keyword}" naturally 4-6 times. Write in first person plural ("we tested", "we found", "we noticed").{link}
+- Use "{keyword}" naturally 4-6 times. Write in third-person authoritative voice — never use first person (I, me, my, we, our, us, myself, ourselves). Use "reviewers found", "testing shows", "owners report", "evidence suggests", "the data indicates" instead.{link}
 
 FORMAT: Return ONLY clean Markdown. No YAML. No preamble. Start writing immediately.
 FIRST LINE must be: PIN_DESC: [one punchy sentence, max 20 words, Pinterest stop-scroll hook]
@@ -1040,7 +1043,10 @@ def main() -> None:
                                      slug, species, category, pin_desc,
                                      product.get("image", ""),
                                      build_pin_image_url(slug))
-                fpath.write_text(fm + "\n" + content, encoding="utf-8")
+                # Strip leading horizontal rules the model sometimes emits before article body
+                content_clean = re.sub(r'^ *-{3,} *$', '', content, count=5, flags=re.MULTILINE).lstrip('
+')
+                fpath.write_text(fm + "\n" + content_clean, encoding="utf-8")
                 log(f"  SAVED {fname} ({fpath.stat().st_size} bytes) -- total: {time.monotonic()-_t0:.1f}s")
 
                 article_url = build_url(slug, utm=True)
