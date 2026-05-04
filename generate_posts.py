@@ -35,7 +35,17 @@ except ImportError:
 
 REPO_DIR  = Path(__file__).parent.resolve()
 import sys as _sys; _sys.path.insert(0, str(REPO_DIR))
-from brain_secrets import get_sheets_creds, get_secret as brain_get_secret
+def get_sheets_creds():
+    """Build Google Sheets credentials from GCP_SA_KEY_B64 env var (GHA secret)."""
+    import base64
+    from google.oauth2.service_account import Credentials
+    b64 = os.environ.get("GCP_SA_KEY_B64", "")
+    if not b64:
+        raise RuntimeError("GCP_SA_KEY_B64 env var not set")
+    info = json.loads(base64.b64decode(b64).decode("utf-8"))
+    return Credentials.from_service_account_info(
+        info, scopes=["https://www.googleapis.com/auth/spreadsheets"]
+    )
 POSTS_DIR = REPO_DIR / "_posts"
 LOG_PATH  = Path(__file__).parent / "LOGS" / f"HappyPet_{datetime.date.today().isoformat()}.log"
 LOCK_PATH = Path("/tmp/happypet_gen.lock")
@@ -856,8 +866,8 @@ def append_to_sheet(title, article_url, description, image_url, species, slug, t
         log("  WARN: gspread not installed, skipping sheet update"); return
     try:
         creds  = get_sheets_creds()
-        dog_id = brain_get_secret("HAPPYPET_SHEET_ID_DOGS") or os.getenv("HAPPYPET_SHEET_ID_DOGS")
-        cat_id = brain_get_secret("HAPPYPET_SHEET_ID_CATS") or os.getenv("HAPPYPET_SHEET_ID_CATS")
+        dog_id = os.getenv("HAPPYPET_SHEET_ID_DOGS")
+        cat_id = os.getenv("HAPPYPET_SHEET_ID_CATS")
         gc     = gspread.authorize(creds)
         pin_image_url = build_pin_image_url(slug)
         row    = [title, article_url, pin_image_url, description, "NO"]
