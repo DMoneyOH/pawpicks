@@ -47,7 +47,7 @@ LOG_PATH.parent.mkdir(exist_ok=True)  # ensure LOGS/ exists
 
 # --- Provider config ---
 # Generator:  Gemini 2.5 Flash (primary)          -> OpenRouter gpt-oss-120b:free (fallback)
-# Reviewer:   Groq qwen3-32b (primary)             -> OpenRouter gpt-oss-120b:free (fallback)
+# Reviewer:   Nemotron-super-49b (primary)         -> qwen/qwen3-32b (fallback)
 # Rewriter:   Groq llama-4-scout (primary)         -> OpenRouter gpt-oss-120b:free (fallback)
 # Fact-check: Groq llama-3.1-8b-instant (primary)  -> Groq llama-3.3-70b-versatile (fallback)
 GEMINI_MODEL         = "gemini-2.5-flash"
@@ -55,8 +55,8 @@ GEMINI_URL           = "https://generativelanguage.googleapis.com/v1beta/models/
 GROQ_URL             = "https://api.groq.com/openai/v1/chat/completions"
 OPENROUTER_URL       = "https://openrouter.ai/api/v1/chat/completions"
 OR_GEN_MODEL         = "openai/gpt-oss-120b:free"
-REVIEWER_MODEL       = "qwen/qwen3-32b"
-REVIEWER_FALLBACK    = "openai/gpt-oss-120b:free"
+REVIEWER_MODEL       = "nvidia/nemotron-3-super-120b-a12b:free"
+REVIEWER_FALLBACK    = "qwen/qwen3-32b"
 REVIEWER_ENABLED     = True
 GROQ_REWRITE_MODEL   = "meta-llama/llama-4-scout-17b-16e-instruct"
 REWRITE_FALLBACK     = "openai/gpt-oss-120b:free"
@@ -907,17 +907,12 @@ def front_matter(title: str, keyword: str, affiliate_url: str, slug: str,
 def append_to_sheet(title, article_url, description, image_url, species, slug, topical_sheet_key):
     if not GSHEETS_AVAILABLE:
         log("  WARN: gspread not installed, skipping sheet update"); return
-    key_file = REPO_DIR / "happypet-sheets-key.json"
-    if not key_file.exists():
-        log("  WARN: happypet-sheets-key.json not found, skipping sheet update"); return
     try:
-        if DOTENV_AVAILABLE:
-            load_dotenv(Path.home() / ".env")
-        dog_id = os.getenv("HAPPYPET_SHEET_ID_DOGS")
-        cat_id = os.getenv("HAPPYPET_SHEET_ID_CATS")
-        scopes = ["https://www.googleapis.com/auth/spreadsheets"]
-        creds  = GCredentials.from_service_account_file(str(key_file), scopes=scopes)
-        gc     = gspread.authorize(creds)
+        from brain_secrets import get_sheets_creds, get_secret as brain_get_secret
+        dog_id = brain_get_secret("HAPPYPET_SHEET_ID_DOGS") or os.getenv("HAPPYPET_SHEET_ID_DOGS")
+        cat_id = brain_get_secret("HAPPYPET_SHEET_ID_CATS") or os.getenv("HAPPYPET_SHEET_ID_CATS")
+        creds  = get_sheets_creds()
+        gc     = gspread.Client(auth=creds)
         pin_image_url = build_pin_image_url(slug)
         row    = [title, article_url, pin_image_url, description, "NO"]
         targets = []
