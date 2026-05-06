@@ -156,6 +156,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--slugs",   default="", help="Comma-separated slugs (empty = all queued)")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--force",   action="store_true", help="Re-fire even if already in sent/")
     args = parser.parse_args()
 
     maker_key = (brain_get_secret("IFTTT_MAKER_KEY", "global") or "").strip()
@@ -203,9 +204,11 @@ def main():
 
     for qf in queue_files:
         try:
-            if (sent_dir / qf.name).exists():
+            if (sent_dir / qf.name).exists() and not args.force:
                 log(f"SKIP (already sent): {qf.name}")
                 continue
+            if (sent_dir / qf.name).exists() and args.force:
+                log(f"FORCE: re-firing {qf.name} (already in sent/)", "WARN")
 
             data        = json.loads(qf.read_text())
             slug        = data.get("slug", qf.stem)
