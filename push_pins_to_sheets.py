@@ -21,7 +21,16 @@ from pathlib import Path
 
 REPO_DIR            = Path(__file__).parent
 import sys as _sys; _sys.path.insert(0, str(REPO_DIR))
-from brain_secrets import get_sheets_creds, get_secret as brain_get_secret
+try:
+    from brain_secrets import get_sheets_creds, get_secret as brain_get_secret
+except ImportError:
+    def brain_get_secret(key, *a, **kw): return os.environ.get(key, '')
+    def get_sheets_creds():
+        import base64, json as _j
+        from google.oauth2.service_account import Credentials
+        info = _j.loads(base64.b64decode(os.environ['GCP_SA_KEY_B64']))
+        return Credentials.from_service_account_info(info,
+            scopes=['https://www.googleapis.com/auth/spreadsheets'])
 LOG_PATH            = REPO_DIR / 'LOGS' / f"HappyPet_{_dt.date.today().isoformat()}.log"
 LOG_PATH.parent.mkdir(exist_ok=True)
 QUEUE_LOW_THRESHOLD = 3
