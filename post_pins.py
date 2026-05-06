@@ -25,6 +25,8 @@ import urllib.error, urllib.parse, urllib.request
 from pathlib import Path
 
 REPO_DIR  = Path(__file__).parent.resolve()
+import sys as _sys; _sys.path.insert(0, str(REPO_DIR))
+from brain_secrets import get_sheets_creds, get_secret as brain_get_secret
 LOG_PATH  = REPO_DIR / "LOGS" / f"HappyPet_{_dt.date.today().isoformat()}.log"
 LOG_PATH.parent.mkdir(exist_ok=True)
 
@@ -47,16 +49,6 @@ def log(msg, level="INFO"):
     print(line, flush=True)
     with LOG_PATH.open("a") as f:
         f.write(line + "\n")
-
-
-def load_env():
-    env_path = Path.home() / ".env"
-    if env_path.exists():
-        for line in env_path.read_text().splitlines():
-            line = line.strip()
-            if line and not line.startswith("#") and "=" in line:
-                k, _, v = line.partition("=")
-                os.environ.setdefault(k.strip(), v.strip())
 
 
 def http_post(url, payload, headers, *, label):
@@ -157,11 +149,9 @@ def main():
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
-    load_env()
-
-    maker_key = os.environ.get("IFTTT_MAKER_KEY", "").strip()
+    maker_key = (brain_get_secret("IFTTT_MAKER_KEY", "global") or "").strip()
     if not maker_key:
-        log("IFTTT_MAKER_KEY not set", "ERROR")
+        log("IFTTT_MAKER_KEY not set in Brain vault_secrets", "ERROR")
         sys.exit(1)
 
     slug_filter = set(s.strip() for s in args.slugs.split(",") if s.strip()) if args.slugs else set()
@@ -186,15 +176,16 @@ def main():
     try:
         import gspread
         from google.oauth2.service_account import Credentials
-        key_file = REPO_DIR / "happypet-sheets-key.json"
-        if key_file.exists():
-            creds     = Credentials.from_service_account_file(str(key_file),
-                            scopes=["https://www.googleapis.com/auth/spreadsheets"])
+        try:
+            creds     = get_sheets_creds()
             gc        = gspread.Client(auth=creds)
-            sheet_ids = {k: v for k, v in os.environ.items() if k.startswith("HAPPYPET_SHEET_ID_")}
+            _sheet_keys = ["HAPPYPET_SHEET_ID_FOOD", "HAPPYPET_SHEET_ID_HEALTH",
+                             "HAPPYPET_SHEET_ID_HOME", "HAPPYPET_SHEET_ID_TOYS",
+                             "HAPPYPET_SHEET_ID_CATS", "HAPPYPET_SHEET_ID_DOGS"]
+            sheet_ids = {k: brain_get_secret(k) for k in _sheet_keys if brain_get_secret(k)}
             log("  gspread ready -- audit trail marking active")
-        else:
-            log("  happypet-sheets-key.json not found -- audit marking skipped", "WARN")
+        except Exception as _e:
+            log(f"  sheets creds failed: {_e} -- audit marking skipped", "WARN")
     except ImportError:
         log("  gspread not installed -- audit marking skipped", "WARN")
 

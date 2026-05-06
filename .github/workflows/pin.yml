@@ -1,6 +1,9 @@
 name: Stage 3 — Post Pins
 
 on:
+  workflow_run:
+    workflows: ["Stage 2 — Publish Articles"]
+    types: [completed]
   workflow_dispatch:
     inputs:
       slugs:
@@ -15,6 +18,11 @@ jobs:
   pin:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # On automated trigger: only run if publish succeeded.
+    # On manual dispatch: always run.
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
 
     steps:
       - name: Checkout repo
@@ -28,23 +36,50 @@ jobs:
           git config user.name  "HappyPet Bot"
           git config user.email "hello@happypetproductreviews.com"
 
+      - name: Resolve slugs
+        id: slugs
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            SLUGS="${{ github.event.inputs.slugs }}"
+            echo "Source: manual dispatch -- slugs=${SLUGS}"
+          else
+            PENDING="_pin_queue/.pending-slugs"
+            if [ ! -f "$PENDING" ]; then
+              echo "No .pending-slugs found -- nothing to pin"
+              echo "slugs=" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            SLUGS=$(cat "$PENDING" | tr -d '[:space:]')
+            echo "Source: .pending-slugs -- slugs=${SLUGS}"
+          fi
+          if [ -z "$SLUGS" ]; then
+            echo "Empty slug list -- nothing to pin"
+            echo "slugs=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "slugs=${SLUGS}" >> "$GITHUB_OUTPUT"
+
       - name: Set up Python
+        if: steps.slugs.outputs.slugs != ''
         uses: actions/setup-python@v6
         with:
           python-version: '3.12'
 
       - name: Install Python dependencies
+        if: steps.slugs.outputs.slugs != ''
         run: |
           pip install --quiet -r requirements.txt
 
       - name: Write GCP service account key
+        if: steps.slugs.outputs.slugs != ''
         run: |
           echo "${{ secrets.GCP_SA_KEY_B64 }}" | base64 -d > happypet-sheets-key.json
 
       - name: Wait for article and image liveness
+        if: steps.slugs.outputs.slugs != ''
         id: liveness
         run: |
-          SLUGS="${{ github.event.inputs.slugs }}"
+          SLUGS="${{ steps.slugs.outputs.slugs }}"
           IFS=',' read -ra SLUG_LIST <<< "$SLUGS"
           MAX_WAIT=1800
           POLL=30
@@ -60,7 +95,6 @@ jobs:
               slug=$(echo "$slug" | tr -d '[:space:]')
               PIN_JSON="_pin_queue/${slug}.json"
               if [ ! -f "$PIN_JSON" ]; then
-                # Already moved to sent/ — skip liveness, already processed
                 echo "  [${ELAPSED}s] ${slug}: JSON in sent/ — skipping"
                 continue
               fi
@@ -87,6 +121,7 @@ jobs:
           exit 1
 
       - name: Post pins via IFTTT Maker webhooks
+        if: steps.slugs.outputs.slugs != ''
         env:
           IFTTT_MAKER_KEY:          ${{ secrets.IFTTT_MAKER_KEY }}
           HAPPYPET_SHEET_ID_DOGS:   ${{ secrets.HAPPYPET_SHEET_ID_DOGS }}
@@ -96,18 +131,20 @@ jobs:
           HAPPYPET_SHEET_ID_TOYS:   ${{ secrets.HAPPYPET_SHEET_ID_TOYS }}
           HAPPYPET_SHEET_ID_HEALTH: ${{ secrets.HAPPYPET_SHEET_ID_HEALTH }}
         run: |
-          python3 post_pins.py --slugs "${{ github.event.inputs.slugs }}"
+          python3 post_pins.py --slugs "${{ steps.slugs.outputs.slugs }}"
 
       - name: Push pins to Google Sheets
+        if: steps.slugs.outputs.slugs != ''
         env:
           FACEBOOK_QUEUE_SHEET_ID:  ${{ secrets.FACEBOOK_QUEUE_SHEET_ID }}
           GMAIL_SMTP_USER:          ${{ secrets.GMAIL_SMTP_USER }}
           GMAIL_ACCOUNT:            ${{ secrets.GMAIL_ACCOUNT }}
           GMAIL_APP_PASSWORD:       ${{ secrets.GMAIL_APP_PASSWORD }}
         run: |
-          python3 push_pins_to_sheets.py --slugs "${{ github.event.inputs.slugs }}"
+          python3 push_pins_to_sheets.py --slugs "${{ steps.slugs.outputs.slugs }}"
 
       - name: Consume pending-slugs
+        if: steps.slugs.outputs.slugs != ''
         run: |
           PENDING="_pin_queue/.pending-slugs"
           # Pull before staging -- git pull --rebase fails on dirty index
@@ -136,7 +173,7 @@ jobs:
           retention-days: 14
 
       - name: Alert on failure
-        if: failure()
+        if: failure() && steps.slugs.outputs.slugs != ''
         env:
           GMAIL_SMTP_USER:    ${{ secrets.GMAIL_SMTP_USER }}
           GMAIL_ACCOUNT:      ${{ secrets.GMAIL_ACCOUNT }}
@@ -145,7 +182,7 @@ jobs:
           python3 -c "
           import smtplib, os
           from email.mime.text import MIMEText
-          slugs = '${{ github.event.inputs.slugs }}'
+          slugs = '${{ steps.slugs.outputs.slugs }}'
           run_id = '${{ github.run_id }}'
           smtp_user  = os.environ.get('GMAIL_SMTP_USER', '')
           smtp_login = os.environ.get('GMAIL_ACCOUNT', '')

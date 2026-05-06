@@ -356,6 +356,12 @@ a { color: inherit; text-decoration: none; }
 .post-product-image img { max-width: 340px; width: 100%; height: auto; border-radius: var(--rx-xl); box-shadow: var(--sh-md); border: 2px solid var(--border); background: #fff; padding: .75rem; object-fit: contain; }
 .post-buy-btn { display: inline-flex; align-items: center; gap: .45rem; background: var(--coral); color: #fff; padding: .8rem 1.75rem; border-radius: var(--rx-p); font-weight: 800; font-size: 1rem; font-family: var(--font-b); box-shadow: var(--sh-c); text-decoration: none; transition: background var(--ease), transform var(--ease); margin-bottom: 1.5rem; }
 .post-buy-btn:hover { background: var(--coral-dk); transform: translateY(-2px); }
+.post-buy-buttons { display: flex; flex-wrap: wrap; gap: .75rem; margin-bottom: 1.5rem; }
+.post-buy-buttons .post-buy-btn { margin-bottom: 0; }
+.post-buy-btn--amazon { background: var(--coral); }
+.post-buy-btn--amazon:hover { background: var(--coral-dk); }
+.post-buy-btn--chewy { background: #003087; }
+.post-buy-btn--chewy:hover { background: #00257a; transform: translateY(-2px); }
 .post-divider { border: none; border-top: 2px solid var(--border); margin: 1.75rem 0; }
 @media (max-width: 520px) { .post-product-image img { max-width: 260px; } }
 

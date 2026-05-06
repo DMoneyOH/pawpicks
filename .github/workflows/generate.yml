@@ -101,6 +101,8 @@ jobs:
           GMAIL_ACCOUNT: ${{ secrets.GMAIL_ACCOUNT }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IMPACT_ACCOUNT_SID: ${{ secrets.IMPACT_ACCOUNT_SID }}
+          IMPACT_AUTH_TOKEN: ${{ secrets.IMPACT_AUTH_TOKEN }}
         run: python3 generate_posts.py
 
       - name: Commit generated files

@@ -26,6 +26,8 @@ def log_pin(msg: str, level: str = "INFO") -> None:
 
 
 REPO      = Path(__file__).parent
+import sys as _sys; _sys.path.insert(0, str(REPO))
+from brain_secrets import get_sheets_creds, get_secret as brain_get_secret
 PINS_DIR  = REPO / 'assets' / 'images' / 'pins'
 POSTS_DIR = REPO / '_posts'
 FONT_DIR  = REPO / 'assets' / 'fonts'
@@ -249,11 +251,10 @@ def parse_posts():
     return posts
 
 def update_sheets(posts_with_pins):
-    KEY_FILE = REPO / 'happypet-sheets-key.json'
-    if not KEY_FILE.exists():
-        log_pin('key file missing', 'WARN'); return
-    creds = Credentials.from_service_account_file(str(KEY_FILE),
-        scopes=['https://www.googleapis.com/auth/spreadsheets'])
+    try:
+        creds = get_sheets_creds()
+    except Exception as _e:
+        log_pin(f'sheets creds failed: {_e}', 'WARN'); return
     gc = gspread.Client(auth=creds)
     DOG_ID = os.getenv('HAPPYPET_SHEET_ID_DOGS')
     CAT_ID = os.getenv('HAPPYPET_SHEET_ID_CATS')

@@ -20,6 +20,8 @@ import datetime as _dt
 from pathlib import Path
 
 REPO_DIR            = Path(__file__).parent
+import sys as _sys; _sys.path.insert(0, str(REPO_DIR))
+from brain_secrets import get_sheets_creds, get_secret as brain_get_secret
 LOG_PATH            = REPO_DIR / 'LOGS' / f"HappyPet_{_dt.date.today().isoformat()}.log"
 LOG_PATH.parent.mkdir(exist_ok=True)
 QUEUE_LOW_THRESHOLD = 3
@@ -194,12 +196,7 @@ def main():
         log('gspread not installed. Run: pip install gspread google-auth --break-system-packages', 'ERROR')
         sys.exit(1)
 
-    key_file = REPO_DIR / 'happypet-sheets-key.json'
-    if not key_file.exists():
-        log('happypet-sheets-key.json not found', 'ERROR')
-        sys.exit(1)
-
-    fb_sheet_id = os.environ.get('FACEBOOK_QUEUE_SHEET_ID', '').strip()
+    fb_sheet_id = (brain_get_secret('FACEBOOK_QUEUE_SHEET_ID') or os.environ.get('FACEBOOK_QUEUE_SHEET_ID', '')).strip()
     if not fb_sheet_id:
         log('FACEBOOK_QUEUE_SHEET_ID not set -- cannot append to Facebook Queue', 'ERROR')
         sys.exit(1)
@@ -217,8 +214,7 @@ def main():
         log('No queued pins found -- nothing to do')
         return
 
-    scopes = ['https://www.googleapis.com/auth/spreadsheets']
-    creds  = Credentials.from_service_account_file(str(key_file), scopes=scopes)
+    creds  = get_sheets_creds()
     gc     = gspread.Client(auth=creds)
 
     fb_sheet = gc.open_by_key(fb_sheet_id)

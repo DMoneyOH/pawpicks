@@ -15,9 +15,14 @@ layout: default
       <img src="{{ page.image }}" alt="{{ page.title }}" loading="lazy">
     </div>
     {% endif %}
+    <div class="post-buy-buttons">
     {% if page.affiliate_url %}
-    <a href="{{ page.affiliate_url }}" class="post-buy-btn" target="_blank" rel="nofollow noopener">Check Price on Amazon →</a>
+    <a href="{{ page.affiliate_url }}" class="post-buy-btn post-buy-btn--amazon" target="_blank" rel="nofollow noopener">Check Price on Amazon →</a>
     {% endif %}
+    {% if page.chewy_url %}
+    <a href="{{ page.chewy_url }}" class="post-buy-btn post-buy-btn--chewy" target="_blank" rel="nofollow noopener">Check Price on Chewy →</a>
+    {% endif %}
+    </div>
     <div class="post-divider"></div>
   </header>
   <div class="post-body">

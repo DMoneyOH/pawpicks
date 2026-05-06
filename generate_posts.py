@@ -33,19 +33,13 @@ try:
 except ImportError:
     PIN_GEN_AVAILABLE = False
 
+try:
+    from chewy_lookup import lookup as chewy_lookup
+    CHEWY_LOOKUP_AVAILABLE = True
+except ImportError:
+    CHEWY_LOOKUP_AVAILABLE = False
+
 REPO_DIR  = Path(__file__).parent.resolve()
-import sys as _sys; _sys.path.insert(0, str(REPO_DIR))
-def get_sheets_creds():
-    """Build Google Sheets credentials from GCP_SA_KEY_B64 env var (GHA secret)."""
-    import base64
-    from google.oauth2.service_account import Credentials
-    b64 = os.environ.get("GCP_SA_KEY_B64", "")
-    if not b64:
-        raise RuntimeError("GCP_SA_KEY_B64 env var not set")
-    info = json.loads(base64.b64decode(b64).decode("utf-8"))
-    return Credentials.from_service_account_info(
-        info, scopes=["https://www.googleapis.com/auth/spreadsheets"]
-    )
 POSTS_DIR = REPO_DIR / "_posts"
 LOG_PATH  = Path(__file__).parent / "LOGS" / f"HappyPet_{datetime.date.today().isoformat()}.log"
 LOCK_PATH = Path("/tmp/happypet_gen.lock")
@@ -61,8 +55,8 @@ GEMINI_URL           = "https://generativelanguage.googleapis.com/v1beta/models/
 GROQ_URL             = "https://api.groq.com/openai/v1/chat/completions"
 OPENROUTER_URL       = "https://openrouter.ai/api/v1/chat/completions"
 OR_GEN_MODEL         = "openai/gpt-oss-120b:free"
-REVIEWER_MODEL       = "nvidia/nemotron-3-super-120b-a12b:free"
-REVIEWER_FALLBACK    = "qwen/qwen3-32b"
+REVIEWER_MODEL       = "qwen/qwen3-32b"
+REVIEWER_FALLBACK    = "openai/gpt-oss-120b:free"
 REVIEWER_ENABLED     = True
 GROQ_REWRITE_MODEL   = "meta-llama/llama-4-scout-17b-16e-instruct"
 REWRITE_FALLBACK     = "openai/gpt-oss-120b:free"
@@ -195,6 +189,64 @@ def build_pin_image_url(slug: str) -> str:
     """Always version-stamp pin image URLs to bust Pinterest CDN cache."""
     version = datetime.date.today().strftime("%Y%m%d")
     return f"{SITE_BASE}/assets/images/pins/{slug}.jpg?v={version}"
+
+
+def enrich_with_chewy(slug: str, product: dict) -> bool:
+    """
+    If chewy_url is not yet set on this product, call chewy_lookup and write
+    the result back into products.json. Returns True if products.json was updated.
+
+    Sentinel rules:
+      Full URL          -> written to chewy_url, button will render
+      "REVIEW:{url}"   -> logged as warning, chewy_url left null, no button
+      "REVIEW"         -> logged as warning, chewy_url left null, no button
+      None              -> credentials missing or error, chewy_url left null
+    """
+    if not CHEWY_LOOKUP_AVAILABLE:
+        return False
+
+    existing = product.get("chewy_url")
+    if existing and not str(existing).startswith("REVIEW"):
+        return False  # already have a confirmed URL
+
+    product_name = product.get("name", "")
+    if not product_name:
+        return False
+
+    log(f"  [chewy] Looking up: {product_name}")
+    try:
+        result = chewy_lookup(product_name)
+    except Exception as e:
+        log(f"  [chewy] Lookup error for {slug}: {e}", "WARN")
+        return False
+
+    url = result.get("chewy_url")
+    if not url or str(url).startswith("REVIEW"):
+        log(f"  [chewy] REVIEW sentinel for {slug} -- manual verification required, no button will render", "WARN")
+        return False
+
+    # Confirmed URL -- update the in-memory product dict and write back to products.json
+    product["chewy_url"]    = url
+    product["chewy_price"]  = result.get("chewy_price")
+    product["chewy_stock"]  = result.get("chewy_stock")
+    product["chewy_rating"] = result.get("chewy_rating")
+
+    json_path = REPO_DIR / "products.json"
+    try:
+        raw = json.loads(json_path.read_text())
+        for entry in raw:
+            if entry.get("topic") == slug:
+                entry["chewy_url"]    = url
+                entry["chewy_price"]  = result.get("chewy_price")
+                entry["chewy_stock"]  = result.get("chewy_stock")
+                entry["chewy_rating"] = result.get("chewy_rating")
+                break
+        json_path.write_text(json.dumps(raw, indent=2))
+        log(f"  [chewy] products.json updated for {slug}: {url[:60]}")
+        return True
+    except Exception as e:
+        log(f"  [chewy] Failed to write products.json for {slug}: {e}", "WARN")
+        return False
 
 
 def load_products() -> dict:
@@ -491,10 +543,9 @@ STRUCTURE:
   Opening (100+ words, NO heading — begin prose directly)
   Quick Picks (H2)
 
-  Featured Pick: {product_name} (H3, 150-200 words)
-    - Open with 2-3 sentences of genuine review — what makes this the top pick, specific real-world performance context
+  Featured Pick: {product_name} (H3, 80-100 words)
     - Reference the verified star rating and review count naturally in prose if available
-    - Pros bullet list: 3-4 genuine strengths with brief explanation of each
+    - Pros bullet list: 3-4 genuine strengths
     - Cons bullet list: 1-2 honest limitations
     - Include affiliate link per LINKING RULE above
     - Do not fabricate specs; hedge unverified claims ("many owners report..." / "tends to...")
@@ -508,14 +559,12 @@ STRUCTURE:
     - DO NOT fabricate review data like "88% of owners reported..." -- if you don't have the number, don't include one
     - Use ONLY the products listed above — do not add or invent others
 
-  Buying Guide (H2, 150+ words)
-
   Comparison Table (H2): Product | Best For | Price Range | Chew Time
-    - Place AFTER the Buying Guide — readers should understand the category before seeing the summary table
     - Price Range: use $, $$, $$$ only — do not invent specific dollar amounts for additional picks
     - Chew Time: Quick (under 5 min) / Moderate (5-15 min) / Long (15+ min) -- estimate based on chew density and product type. For non-consumable products, use a relevant attribute instead of Chew Time.
     - Do NOT include a ratings column — only use verified ratings from product data above
 
+  Buying Guide (H2, 150+ words)
   Closing (80+ words with affiliate link per LINKING RULE above, NO heading — begin prose directly)"""
     else:
         structure = f"""ARTICLE FORMAT: Buying guide -- {title}
@@ -541,7 +590,7 @@ WRITING STYLE:
   Good examples: "My dog chewed through a couch cushion on a 45-minute Zoom call." / "Our cat knocked the water bowl over three times in one week." / "I spent $40 on a toy my dog sniffed once and walked away from."
   Bad examples (NEVER write openings like these): "We've all been there - [generic scenario]..." (cliché opener) / "As a pet owner, you know how important it is to..." (filler) / "Dogs need mental stimulation to stay happy and healthy." (generic) / "Standing in the kitchen when suddenly..." (AI-template setup) / Any opening that starts with a vague scenario followed by a product pitch.
   If the article topic is purely practical (e.g. flea prevention, nutrition), a direct factual opening is fine -- do not force an anecdote.
-- Use "{keyword}" naturally 4-6 times. Write in third-person authoritative voice — never use first person (I, me, my, we, our, us, myself, ourselves). Use "reviewers found", "testing shows", "owners report", "evidence suggests", "the data indicates" instead.{link}
+- Use "{keyword}" naturally 4-6 times. Write in first person plural ("we tested", "we found", "we noticed").{link}
 
 FORMAT: Return ONLY clean Markdown. No YAML. No preamble. Start writing immediately.
 FIRST LINE must be: PIN_DESC: [one punchy sentence, max 20 words, Pinterest stop-scroll hook]
@@ -696,46 +745,28 @@ def review_and_rewrite(title: str, keyword: str, content: str, api_key: str, or_
                 "HTTP-Referer": "https://happypetproductreviews.com",
                 "X-Title": "HappyPet Reviewer",
             }
-            # Reviewer-specific retry loop: Groq primary, OpenRouter fallback
+            # Reviewer-specific retry loop for 429 with model fallback
             raw = None
-            groq_key_rev = os.environ.get("GROQ_API_KEY", "").strip()
-            or_key_rev   = os.environ.get("OPENROUTER_API_KEY", "").strip()
-            # Reviewer tiers — ordered by quality/uptime, bias-excluded:
-            # Generator primary = gpt-oss-120b (OR), fallback = llama-3.3-70b-versatile (Groq).
-            # Neither appears in tiers 1-3 to avoid same-model self-review bias.
-            # Groq tier 4 draws from a separate rate-limit pool independent of OR daily cap.
-            review_tiers = [
-                ("nvidia/nemotron-3-super-120b-a12b:free", OPENROUTER_URL, or_key_rev),   # T1: 120B MoE, no pipeline overlap
-                ("qwen/qwen3-32b",                         OPENROUTER_URL, or_key_rev),   # T2: diff family, was prior primary
-                ("google/gemma-3-27b-it:free",             OPENROUTER_URL, or_key_rev),   # T3: Google, no overlap
-                ("llama-3.3-70b-versatile",                GROQ_URL,       groq_key_rev), # T4: last resort, same as gen fallback
-            ]
-            for model_idx, (rev_model, rev_url, rev_key) in enumerate(review_tiers):
+            review_models = [REVIEWER_MODEL, REVIEWER_FALLBACK]
+            for model_idx, rev_model in enumerate(review_models):
                 if raw is not None:
                     break
-                if not rev_key:
-                    log_reviewer(f"  SKIP reviewer tier {model_idx+1} ({rev_model}) -- API key not set", "WARN")
-                    continue
                 if model_idx > 0:
-                    log_reviewer(f"  Primary reviewer failed. Falling back to {rev_model} via OpenRouter", "WARN")
-                rev_payload = json.dumps({
-                    "model": rev_model,
-                    "messages": [{"role": "user", "content": make_review_prompt(title, keyword, content)}],
-                    "max_tokens": 2048,
-                    "temperature": 0.2,
-                }).encode()
-                rev_headers = {
-                    "Content-Type": "application/json",
-                    "Authorization": f"Bearer {rev_key}",
-                }
+                    log_reviewer(f"  Primary reviewer failed. Falling back to {rev_model}", "WARN")
+                    payload = json.dumps({
+                        "model": rev_model,
+                        "messages": [{"role": "user", "content": make_review_prompt(title, keyword, content)}],
+                        "max_tokens": 2048,
+                        "temperature": 0.2,
+                    }).encode()
                 try:
-                    raw_resp = http_post(rev_url, rev_payload, rev_headers,
+                    raw_resp = http_post(OPENROUTER_URL, payload, headers,
                                         label=f"Reviewer({rev_model})",
                                         log_fn=log_reviewer, timeout=60,
                                         backoff_base=30, backoff_exp=True)
                     raw = json.loads(raw_resp)["choices"][0]["message"]["content"].strip()
                 except RuntimeError:
-                    pass  # tier exhausted -- try next
+                    pass  # model exhausted -- outer loop tries next model
             if raw is None:
                 log_reviewer("  review call failed after retries -- article held as UNREVIEWED", "WARN")
                 return content, False, ["REVIEWER_UNAVAILABLE"]
@@ -853,7 +884,8 @@ def create_github_issue(title: str, slug: str, flags: list) -> None:
 
 
 def front_matter(title: str, keyword: str, affiliate_url: str, slug: str,
-                 species: str, category: str, description: str, image: str = "", pin_image: str = "") -> str:
+                 species: str, category: str, description: str, image: str = "",
+                 pin_image: str = "", chewy_url: str = "") -> str:
     today = datetime.date.today().isoformat()
     fm = (
         f'---\nlayout: post\ntitle: "{title}"\ndate: {today}\n'
@@ -862,6 +894,8 @@ def front_matter(title: str, keyword: str, affiliate_url: str, slug: str,
     )
     if affiliate_url:
         fm += f'affiliate_url: "{affiliate_url}"\n'
+    if chewy_url and not chewy_url.startswith("REVIEW"):
+        fm += f'chewy_url: "{chewy_url}"\n'
     if image:
         fm += f'image: "{image}"\n'
     if pin_image:
@@ -873,10 +907,16 @@ def front_matter(title: str, keyword: str, affiliate_url: str, slug: str,
 def append_to_sheet(title, article_url, description, image_url, species, slug, topical_sheet_key):
     if not GSHEETS_AVAILABLE:
         log("  WARN: gspread not installed, skipping sheet update"); return
+    key_file = REPO_DIR / "happypet-sheets-key.json"
+    if not key_file.exists():
+        log("  WARN: happypet-sheets-key.json not found, skipping sheet update"); return
     try:
-        creds  = get_sheets_creds()
+        if DOTENV_AVAILABLE:
+            load_dotenv(Path.home() / ".env")
         dog_id = os.getenv("HAPPYPET_SHEET_ID_DOGS")
         cat_id = os.getenv("HAPPYPET_SHEET_ID_CATS")
+        scopes = ["https://www.googleapis.com/auth/spreadsheets"]
+        creds  = GCredentials.from_service_account_file(str(key_file), scopes=scopes)
         gc     = gspread.authorize(creds)
         pin_image_url = build_pin_image_url(slug)
         row    = [title, article_url, pin_image_url, description, "NO"]
@@ -944,11 +984,6 @@ def main() -> None:
         used_slugs = build_used_slugs()
         log(f"Dedup: {len(used_slugs)} slugs already published")
 
-        # Filter already-published slugs BEFORE applying cap so cap slots
-        # are never wasted on topics that will be skipped anyway.
-        topics = [t for t in topics if t[0] not in used_slugs]
-        log(f"Unpublished topics available: {len(topics)}")
-
         max_articles = int(os.environ.get("MAX_ARTICLES", "999"))
         topics = topics[:max_articles]
         log(f"Cap: {max_articles} -- {len(topics)} topic(s) queued this run")
@@ -975,6 +1010,7 @@ def main() -> None:
             topical_sheet_key = product.get("topical_sheet", "")
 
             log(f"  Product: {product['name']}")
+            enrich_with_chewy(slug, product)  # no-op if already set or creds missing
             log(f"WRITE [{i}/{len(topics)}] [{fmt}] {title}")
             _t0 = time.monotonic()
             time.sleep(RPM_SLEEP)
@@ -1042,11 +1078,9 @@ def main() -> None:
                 fm    = front_matter(title, keyword, product.get("affiliate_url", ""),
                                      slug, species, category, pin_desc,
                                      product.get("image", ""),
-                                     build_pin_image_url(slug))
-                # Strip leading horizontal rules the model sometimes emits before article body
-                content_clean = re.sub(r'^ *-{3,} *$', '', content, count=5, flags=re.MULTILINE).lstrip('
-')
-                fpath.write_text(fm + "\n" + content_clean, encoding="utf-8")
+                                     build_pin_image_url(slug),
+                                     chewy_url=product.get("chewy_url") or "")
+                fpath.write_text(fm + "\n" + content, encoding="utf-8")
                 log(f"  SAVED {fname} ({fpath.stat().st_size} bytes) -- total: {time.monotonic()-_t0:.1f}s")
 
                 article_url = build_url(slug, utm=True)
